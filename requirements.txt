@@ -1,0 +1,4 @@
+platformio==4.3.4
+Pillow==6.2.2
+qrcode==6.1
+random-password-generator==2.1.0

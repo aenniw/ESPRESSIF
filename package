@@ -1,0 +1,24 @@
+#!/bin/bash
+
+test -d target || \
+    mkdir target
+
+rm -f target/*
+
+for PROJECT in ./*/platformio.ini; do
+    for TYPE in "firmware" "spiffs"; do
+        for EXTENSION in "elf" "bin"; do
+            for BINARY in ${PROJECT%/platformio.ini}/.pio/build/*/${TYPE}.${EXTENSION}; do
+                test -f ${BINARY} || \
+                    continue
+
+                PROJECT_NAME=${PROJECT%/*}
+                PROJECT_NAME=${PROJECT_NAME##*/}
+                ENVIROMENT_NAME=${BINARY%/*}
+                ENVIROMENT_NAME=${ENVIROMENT_NAME##*/}
+                
+                cp ${BINARY} "target/${PROJECT_NAME}-${ENVIROMENT_NAME}-${TYPE}.${EXTENSION}"
+            done
+        done
+    done
+done
