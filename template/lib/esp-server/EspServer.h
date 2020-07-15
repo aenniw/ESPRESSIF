@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Service.h>
-
 #if defined(ARDUINO_ARCH_ESP8266)
 #include <ESP8266WebServer.h>
 #define SERVER ESP8266WebServer
@@ -10,24 +9,33 @@
 #define SERVER WebServer
 #endif
 
+const char *mineType(uint8_t t);
+String mineType(const String &s);
+
 class Request {
 private:
     SERVER &proxy;
 public:
     explicit Request(SERVER &s) : proxy(s) {}
 
-    String pathArg(unsigned int i) {
-        return proxy.pathArg(i);
-    };
+    String uri() const;
+    String pathArg(unsigned int i) const;
+    void send(int code, const char *content_type = nullptr, const String &content = String(""));
+    bool hasArg(const String &name) const;
+    String arg(const String &name) const;
 
-    void send(int code, const char *content_type = nullptr, const String &content = String("")) {
-        proxy.send(code, content_type, content);
-    };
+    template<typename T>
+    size_t streamFile(T &file) const {
+#if defined(ARDUINO_ARCH_ESP8266)
+        return proxy.streamFile(file, mineType(file.fullName()), HTTP_GET);
+#elif defined(ARDUINO_ARCH_ESP32)
+        return proxy.streamFile(file, mineType(file.name()));
+#endif
+    }
+
 };
 
 typedef std::function<void(Request *)> RestHandler;
-
-const char *mineType(uint8_t t);
 
 class EspServer : public Service {
 private:
@@ -51,7 +59,8 @@ public:
     void begin() override;;
 
     EspServer &
-    on(HTTPMethod method, const __FlashStringHelper *uri, const RestHandler &onRequest, bool checkAuth = true);
+    on(HTTPMethod method, const __FlashStringHelper *uri, const RestHandler &onRequest,
+       const RestHandler &onUpload = nullptr, bool checkAuth = true);
 
     EspServer &serveStatic(const char *uri, fs::FS &fs, const char *path, const char *cache_header = nullptr);
 

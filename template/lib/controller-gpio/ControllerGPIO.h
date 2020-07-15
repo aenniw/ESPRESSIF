@@ -1,8 +1,8 @@
 #pragma once
 
-#include <FS.h>
 #include <Service.h>
 #include <EspServer.h>
+#include <FileSystem.h>
 
 typedef enum {
     IN = INPUT,
@@ -16,29 +16,22 @@ typedef enum {
 
 class ControllerGPIO : public Subscriber<EspServer>, public Service {
 private:
-    FS &fs;
+    const String base_path;
+    FileSystem &fs;
 protected:
     void list(Request *request) const;
-
     void info(Request *request) const;
-
     void read(Request *request) const;
-
     void write(Request *request) const;
-
     void toggle(Request *request) const;
-
     void set_mode(Request *request) const;
-
     void delete_gpio(Request *request) const;
 
 public:
-    explicit ControllerGPIO(FS &fs) : fs(fs) {}
+    explicit ControllerGPIO(FileSystem &fs) : base_path(F("/gpio/")), fs(fs) {}
 
     void begin() override;;
-
     void subscribe(EspServer &rest) const override;
-
     void cycle() override {};
 
 };
