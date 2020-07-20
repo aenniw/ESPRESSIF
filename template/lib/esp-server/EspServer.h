@@ -1,6 +1,8 @@
 #pragma once
 
+#include <mime.h>
 #include <Service.h>
+#include <EspRequest.h>
 #if defined(ARDUINO_ARCH_ESP8266)
 #include <ESP8266WebServer.h>
 #define SERVER ESP8266WebServer
@@ -9,38 +11,38 @@
 #define SERVER WebServer
 #endif
 
-const char *mineType(uint8_t t);
-String mineType(const String &s);
-
-class Request {
+class RestRequest : public Request {
 private:
     SERVER &proxy;
 public:
-    explicit Request(SERVER &s) : proxy(s) {}
+    explicit RestRequest(SERVER &s) : proxy(s) {}
 
-    String uri() const;
-    String pathArg(unsigned int i) const;
-    void send(int code, const char *content_type = nullptr, const String &content = String(""));
+    using Request::send;
+
+    String uri() const override;
+    String pathArg(unsigned int i) const override;
+    void send(int code, const char *content_type, const String &content) override;
+
     bool hasArg(const String &name) const;
     String arg(const String &name) const;
 
     template<typename T>
     size_t streamFile(T &file) const {
 #if defined(ARDUINO_ARCH_ESP8266)
-        return proxy.streamFile(file, mineType(file.fullName()), HTTP_GET);
+        return proxy.streamFile(file, mimeType(file.fullName()), HTTP_GET);
 #elif defined(ARDUINO_ARCH_ESP32)
-        return proxy.streamFile(file, mineType(file.name()));
+        return proxy.streamFile(file, mimeType(file.name()));
 #endif
     }
 
 };
 
-typedef std::function<void(Request *)> RestHandler;
+typedef std::function<void(RestRequest *)> RestHandler;
 
 class EspServer : public Service {
 private:
     SERVER server;
-    Request request;
+    RestRequest request;
 
     const char *realm = "esp-realm";
     const char *user = nullptr;

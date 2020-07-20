@@ -4,11 +4,11 @@
 #include <detail/mimetable.h>
 #endif
 
-String ControllerFS::getFileName(Request *request) {
+String ControllerFS::getFileName(RestRequest *request) {
     return request->uri().substring(URI_OFFSET);
 }
 
-void ControllerFS::ls(Request *request) const {
+void ControllerFS::ls(RestRequest *request) const {
     StaticJsonDocument<512> doc;
 
     JsonArray files = doc.createNestedArray(F("file"));
@@ -26,10 +26,10 @@ void ControllerFS::ls(Request *request) const {
 
     String response;
     serializeJson(doc, response);
-    request->send(200, mineType(mime::json), response);
+    request->send(200, mimeType(mime::json), response);
 }
 
-void ControllerFS::read(Request *request) const {
+void ControllerFS::read(RestRequest *request) const {
     if (!fs.read(getFileName(request), [&](File &f) {
         request->streamFile(f);
     })) {
@@ -37,13 +37,13 @@ void ControllerFS::read(Request *request) const {
     }
 }
 
-void ControllerFS::mkdir(Request *request) const {
+void ControllerFS::mkdir(RestRequest *request) const {
     if (fs.mkdir(getFileName(request)))
         return request->send(200);
     request->send(409);
 }
 
-void ControllerFS::writeUrlEncoded(Request *request) const {
+void ControllerFS::writeUrlEncoded(RestRequest *request) const {
     if (request->hasArg(F("plain"))) {
         if (fs.write(getFileName(request), [&](File &f) {
             f.print(request->arg(F("plain")));
@@ -53,7 +53,7 @@ void ControllerFS::writeUrlEncoded(Request *request) const {
     request->send(500);
 }
 
-void ControllerFS::rm(Request *request) const {
+void ControllerFS::rm(RestRequest *request) const {
     if (fs.rm(getFileName(request)))
         request->send(200);
     else

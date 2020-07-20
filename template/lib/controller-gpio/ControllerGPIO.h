@@ -2,6 +2,7 @@
 
 #include <Service.h>
 #include <EspServer.h>
+#include <EspWebSocket.h>
 #include <FileSystem.h>
 
 typedef enum {
@@ -14,7 +15,7 @@ typedef enum {
     DIGI = 7
 } GPIO_TYPE;
 
-class ControllerGPIO : public Subscriber<EspServer>, public Service {
+class ControllerGPIO : public Subscriber<EspServer>, public Subscriber<EspWebSocket>, public Service {
 private:
     const String base_path;
     FileSystem &fs;
@@ -32,6 +33,7 @@ public:
 
     void begin() override;;
     void subscribe(EspServer &rest) const override;
+    void subscribe(EspWebSocket &ws) const override;
     void cycle() override {};
 
 };

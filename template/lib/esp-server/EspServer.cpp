@@ -1,30 +1,5 @@
 #include <uri/UriRegex.h>
-#include <detail/mimetable.h>
 #include "EspServer.h"
-
-String mineType(const String &p) {
-#if defined(ARDUINO_ARCH_ESP8266)
-    return mime::getContentType(p);
-#elif defined(ARDUINO_ARCH_ESP32)
-    using mime::mimeTable;
-    char buff[sizeof(mimeTable[0].mimeType)];
-    // Check all entries but last one for match, return if found
-    for (size_t i=0; i < sizeof(mimeTable)/sizeof(mimeTable[0])-1; i++) {
-        strcpy_P(buff, mimeTable[i].endsWith);
-        if (p.endsWith(buff)) {
-            strcpy_P(buff, mimeTable[i].mimeType);
-            return String(buff);
-        }
-    }
-    // Fall-through and just return default type
-    strcpy_P(buff, mimeTable[sizeof(mimeTable)/sizeof(mimeTable[0])-1].mimeType);
-    return String(buff);
-#endif
-}
-
-const char *mineType(uint8_t t) {
-    return mime::mimeTable[t].mimeType;
-}
 
 void EspServer::not_found() {
     LOG("N/A | %d | %s", server.method(), server.uri().c_str());
@@ -84,18 +59,18 @@ void EspServer::cycle() {
     server.handleClient();
 }
 
-String Request::uri() const {
+String RestRequest::uri() const {
     return proxy.uri();
 }
 
-String Request::pathArg(unsigned int i) const {
+String RestRequest::pathArg(unsigned int i) const {
     return proxy.pathArg(i);
 }
 
-void Request::send(int code, const char *content_type, const String &content) {
+void RestRequest::send(int code, const char *content_type, const String &content) {
     proxy.send(code, content_type, content);
 }
 
-bool Request::hasArg(const String &name) const { return proxy.hasArg(name); }
+bool RestRequest::hasArg(const String &name) const { return proxy.hasArg(name); }
 
-String Request::arg(const String &name) const { return proxy.arg(name); }
+String RestRequest::arg(const String &name) const { return proxy.arg(name); }

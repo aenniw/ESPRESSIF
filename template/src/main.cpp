@@ -10,6 +10,7 @@
 #include <Service.h>
 #include <FileSystem.h>
 #include <EspServer.h>
+#include <EspWebSocket.h>
 #include <ControllerGPIO.h>
 #include <ControllerFS.h>
 
@@ -25,12 +26,14 @@ void wifiConnect() {
     LOG("IP address: %s", WiFi.localIP().toString().c_str());
 }
 
+EspServer rest(80);
+EspWebSocket webSocket(81);
 FileSystem fileSystem;
+
 ControllerFS controllerFS(fileSystem);
 ControllerGPIO controllerGPIO(fileSystem);
-EspServer rest(80);
 
-std::vector<Service *> services{&fileSystem, &controllerGPIO, &rest};
+std::vector<Service *> services{&fileSystem, &controllerGPIO, &rest, &webSocket};
 
 void setup() {
     LOG_INIT(Serial.begin(MONITOR_SPEED), &Serial);
@@ -40,6 +43,8 @@ void setup() {
 
     rest.serve(controllerGPIO).serve(controllerFS);
     rest.serveStatic("/", VFS, "/www/", "max-age=3600");
+
+    webSocket.serve(controllerGPIO);
 
     for (auto &service : services)
         service->begin();

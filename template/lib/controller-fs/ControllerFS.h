@@ -9,13 +9,13 @@ private:
     const static uint8_t URI_OFFSET = 10;
     FileSystem &fs;
 protected:
-    static String getFileName(Request *request);
+    static String getFileName(RestRequest *request);
 
-    void ls(Request *request) const;
-    void read(Request *request) const;
-    void mkdir(Request *request) const;
-    void writeUrlEncoded(Request *request) const;
-    void rm(Request *request) const;
+    void ls(RestRequest *request) const;
+    void read(RestRequest *request) const;
+    void mkdir(RestRequest *request) const;
+    void writeUrlEncoded(RestRequest *request) const;
+    void rm(RestRequest *request) const;
 
 public:
     explicit ControllerFS(FileSystem &fs) : fs(fs) {}
