@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Service.h>
+#include <commons.h>
 #include <EspServer.h>
 #include <FileSystem.h>
 
@@ -8,9 +8,9 @@ class ControllerFS : public Subscriber<EspServer> {
 private:
     const static uint8_t URI_OFFSET = 10;
     FileSystem &fs;
+private:
+    static String getFileName(RestRequest *request, unsigned int offset = 0);
 protected:
-    static String getFileName(RestRequest *request);
-
     void ls(RestRequest *request) const;
     void read(RestRequest *request) const;
     void mkdir(RestRequest *request) const;
@@ -20,5 +20,5 @@ protected:
 public:
     explicit ControllerFS(FileSystem &fs) : fs(fs) {}
 
-    void subscribe(EspServer &rest) const override;
+    void subscribe(EspServer &rest) override;
 };

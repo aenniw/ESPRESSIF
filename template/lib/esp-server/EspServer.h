@@ -1,7 +1,7 @@
 #pragma once
 
 #include <mime.h>
-#include <Service.h>
+#include <commons.h>
 #include <EspRequest.h>
 #if defined(ARDUINO_ARCH_ESP8266)
 #include <ESP8266WebServer.h>
@@ -49,9 +49,10 @@ private:
     const char *secret = nullptr;
 
     bool digest = false, cors = false;
-
+    Predicate<String> *bearerValidator = nullptr;
 private:
     void not_found();
+    bool validate_bearer();
 
 public:
     explicit EspServer(const uint16_t port = 80, const char *user = nullptr, const char *secret = nullptr,
@@ -61,12 +62,14 @@ public:
     void begin() override;;
 
     EspServer &
-    on(HTTPMethod method, const __FlashStringHelper *uri, const RestHandler &onRequest,
-       const RestHandler &onUpload = nullptr, bool checkAuth = true);
+    on(HTTPMethod method, const Uri &uri, const RestHandler &onRequest, const RestHandler &onUpload = nullptr,
+       bool checkAuth = true);
 
     EspServer &serveStatic(const char *uri, fs::FS &fs, const char *path, const char *cache_header = nullptr);
 
     EspServer &serve(Subscriber<EspServer> &s);
+
+    EspServer &setBearerValidator(Predicate<String> *validator);
 
     void cycle() override;
 };

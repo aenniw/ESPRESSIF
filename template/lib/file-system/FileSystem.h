@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Service.h>
+#include <commons.h>
 #if defined(ARDUINO_ARCH_ESP8266)
 #include <LittleFS.h>
 #define VFS LittleFS
@@ -23,9 +23,10 @@ public:
     void begin() override;
 
     bool ls(const String &dirname, const LsHandler &h);
-    bool write(const String &path, const FileHandler &h);
+    bool write(const String &path, const FileHandler &h, const char *mode = "w");
     bool read(const String &path, const FileHandler &h);
     bool rm(const String &path);
+    bool mv(const String &s, const String &d);
     bool mkdir(const String &path);
 
     void cycle() override {};
