@@ -1,9 +1,8 @@
 #pragma once
 
-#include <Service.h>
+#include <commons.h>
 #include <EspRequest.h>
 #include <WebSocketsServer.h>
-
 #if defined(ARDUINO_ARCH_ESP8266)
 #include <ESP8266WebServer.h>
 #elif defined(ARDUINO_ARCH_ESP32)
@@ -70,7 +69,7 @@ public:
     void begin() override;;
 
     EspWebSocket &
-    on(HTTPMethod m, const __FlashStringHelper *uri, EspRequestHandler fn, bool broadcast = true);
+    on(HTTPMethod m, const Uri &uri, EspRequestHandler fn, bool broadcast = true);
 
     EspWebSocket &serve(Subscriber<EspWebSocket> &s);
 

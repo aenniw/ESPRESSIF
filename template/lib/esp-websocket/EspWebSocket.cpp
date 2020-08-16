@@ -1,4 +1,3 @@
-#include <uri/UriRegex.h>
 #include <ArduinoJson.h>
 #include "EspWebSocket.h"
 
@@ -46,8 +45,8 @@ void EspWebSocket::begin() {
 }
 
 EspWebSocket &
-EspWebSocket::on(HTTPMethod m, const __FlashStringHelper *uri, EspRequestHandler fn, bool broadcast) {
-    addRequestHandler(new EventHandler(std::move(fn), UriRegex(uri), m, broadcast));
+EspWebSocket::on(HTTPMethod m, const Uri &uri, EspRequestHandler fn, bool broadcast) {
+    addRequestHandler(new EventHandler(std::move(fn), uri, m, broadcast));
     return *this;
 }
 

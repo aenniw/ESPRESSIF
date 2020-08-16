@@ -1,4 +1,3 @@
-#include <uri/UriRegex.h>
 #include "EspServer.h"
 
 void EspServer::not_found() {
@@ -22,26 +21,35 @@ void EspServer::begin() {
     server.begin();
 }
 
+bool EspServer::validate_bearer() {
+    const auto authHeader = F("Authorization");
+    if (bearerValidator && server.hasHeader(authHeader)) {
+        String token = server.header(authHeader);
+        if (token.startsWith(F("Bearer"))) {
+            token = token.substring(6);
+            token.trim();
+            return bearerValidator->test(token);
+        }
+    }
+    return false;
+}
+
 EspServer &
-EspServer::on(const HTTPMethod method, const __FlashStringHelper *uri, const RestHandler &onRequest,
+EspServer::on(const HTTPMethod method, const Uri &uri, const RestHandler &onRequest,
               const RestHandler &onUpload, const bool checkAuth) {
     SERVER::THandlerFunction upload = [=]() { onUpload(&request); };
-    server.on(UriRegex(uri), method, [=]() {
+    SERVER::THandlerFunction handle = [=]() {
         LOG("%d | %s", method, server.uri().c_str());
         bool auth = !checkAuth || !(user && secret);
         if (!auth) {
-#ifdef ARDUINO_ARCH_ESP8266
-            if (digest)
-                auth |= server.authenticateDigest(user, secret);
-            else
-#endif
-                auth |= server.authenticate(user, secret);
+            auth |= server.authenticate(user, secret) || validate_bearer();
         }
         if (!auth)
             server.requestAuthentication(digest ? DIGEST_AUTH : BASIC_AUTH, realm);
         else
             onRequest(&request);
-    }, !onUpload ? nullptr : upload);
+    };
+    server.on(uri, method, handle, !onUpload ? nullptr : upload);
     return *this;
 }
 
@@ -57,6 +65,11 @@ EspServer &EspServer::serve(Subscriber<EspServer> &s) {
 
 void EspServer::cycle() {
     server.handleClient();
+}
+
+EspServer &EspServer::setBearerValidator(Predicate<String> *validator) {
+    this->bearerValidator = validator;
+    return *this;
 }
 
 String RestRequest::uri() const {

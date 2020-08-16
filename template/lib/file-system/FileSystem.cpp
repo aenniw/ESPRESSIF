@@ -44,8 +44,8 @@ bool FileSystem::ls(const String &dirname, const LsHandler &h) {
 }
 #endif
 
-bool FileSystem::write(const String &path, const FileHandler &h) {
-    File file = fs.open(path, "w");
+bool FileSystem::write(const String &path, const FileHandler &h, const char *mode) {
+    File file = fs.open(path, mode);
     if (file) {
         h(file);
         file.close();
@@ -79,4 +79,8 @@ bool FileSystem::rm(const String &path) {
 
 bool FileSystem::mkdir(const String &path) {
     return fs.mkdir(path);
+}
+
+bool FileSystem::mv(const String &s, const String &d) {
+    return fs.rename(s, d);
 }

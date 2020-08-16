@@ -2,10 +2,16 @@
 #include <ArduinoJson.h>
 #ifdef ARDUINO_ARCH_ESP32
 #include <detail/mimetable.h>
+#include <uri/UriRegex.h>
+#define DIR_OFFSET 0
+#else
+#include <uri/UriGlob.h>
+#define DIR_OFFSET 1
 #endif
 
-String ControllerFS::getFileName(RestRequest *request) {
-    return request->uri().substring(URI_OFFSET);
+String ControllerFS::getFileName(RestRequest *request, unsigned int offset) {
+    auto uri = request->uri();
+    return uri.substring(URI_OFFSET, uri.length() - offset);
 }
 
 void ControllerFS::ls(RestRequest *request) const {
@@ -38,7 +44,7 @@ void ControllerFS::read(RestRequest *request) const {
 }
 
 void ControllerFS::mkdir(RestRequest *request) const {
-    if (fs.mkdir(getFileName(request)))
+    if (fs.mkdir(getFileName(request, DIR_OFFSET)))
         return request->send(200);
     request->send(409);
 }
@@ -60,15 +66,30 @@ void ControllerFS::rm(RestRequest *request) const {
         request->send(404);
 }
 
-void ControllerFS::subscribe(EspServer &rest) const {
-    rest.on(HTTP_GET, F(R"(^\/api\/v1\/fs\/(.*\/)*$)"),
+void ControllerFS::subscribe(EspServer &rest) {
+#ifdef ARDUINO_ARCH_ESP32
+    rest.on(HTTP_GET, UriRegex(F(R"(^\/api\/v1\/fs\/(.*\/)*$)")),
             std::bind(&ControllerFS::ls, this, std::placeholders::_1));
-    rest.on(HTTP_GET, F(R"(^\/api\/v1\/fs\/.*[^\/]$)"),
+    rest.on(HTTP_GET, UriRegex(F(R"(^\/api\/v1\/fs\/.*[^\/]$)")),
             std::bind(&ControllerFS::read, this, std::placeholders::_1));
-    rest.on(HTTP_POST, F(R"(^\/api\/v1\/fs\/.+\/$)"),
+    rest.on(HTTP_POST, UriRegex(F(R"(^\/api\/v1\/fs\/.+\/$)")),
             std::bind(&ControllerFS::mkdir, this, std::placeholders::_1));
-    rest.on(HTTP_POST, F(R"(^\/api\/v1\/fs\/.*[^\/]$)"),
+    rest.on(HTTP_POST, UriRegex(F(R"(^\/api\/v1\/fs\/.*[^\/]$)")),
             std::bind(&ControllerFS::writeUrlEncoded, this, std::placeholders::_1));
-    rest.on(HTTP_DELETE, F(R"(^\/api\/v1\/fs\/.*$)"),
+    rest.on(HTTP_DELETE, UriRegex(F(R"(^\/api\/v1\/fs\/.*$)")),
             std::bind(&ControllerFS::rm, this, std::placeholders::_1));
+#else
+    rest.on(HTTP_GET, Uri(F("/api/v1/fs/")),
+            std::bind(&ControllerFS::ls, this, std::placeholders::_1));
+    rest.on(HTTP_GET, UriGlob(F("/api/v1/fs/*/")),
+            std::bind(&ControllerFS::ls, this, std::placeholders::_1));
+    rest.on(HTTP_GET, UriGlob(F("/api/v1/fs/*")),
+            std::bind(&ControllerFS::read, this, std::placeholders::_1));
+    rest.on(HTTP_POST, UriGlob(F("/api/v1/fs/*/")),
+            std::bind(&ControllerFS::mkdir, this, std::placeholders::_1));
+    rest.on(HTTP_POST, UriGlob(F("/api/v1/fs/*")),
+            std::bind(&ControllerFS::writeUrlEncoded, this, std::placeholders::_1));
+    rest.on(HTTP_DELETE, UriGlob(F("/api/v1/fs/*")),
+            std::bind(&ControllerFS::rm, this, std::placeholders::_1));
+#endif
 }

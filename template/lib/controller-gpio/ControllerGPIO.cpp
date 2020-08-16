@@ -1,10 +1,36 @@
+#include "ControllerGPIO.h"
 #include <ArduinoJson.h>
 #include <EspServer.h>
+#include <uri/UriBraces.h>
 #ifdef ARDUINO_ARCH_ESP32
 #include <analogWrite.h>
 #include <detail/mimetable.h>
 #endif
-#include "ControllerGPIO.h"
+
+using namespace gpio;
+
+gpio::mode ControllerGPIO::get_mode(const String &s) const {
+    if (s.equalsIgnoreCase(F("INPUT")))
+        return IN;
+    if (s.equalsIgnoreCase(F("OUTPUT")))
+        return OUT;
+    return NONE;
+}
+
+gpio::type ControllerGPIO::get_type(const String &s) const {
+    if (s.equalsIgnoreCase(F("ANALOG")))
+        return LINEAR;
+    if (s.equalsIgnoreCase(F("DIGITAL")))
+        return DIGITAL;
+    return INVALID;
+}
+
+int16_t ControllerGPIO::get_digit(const String &s) const {
+    for (char i : s) {
+        if (!isDigit(i)) return -1;
+    }
+    return s.toInt();
+}
 
 void ControllerGPIO::begin() {
     fs.ls(base_path, [this](const String &n, const bool dir) {
@@ -12,15 +38,12 @@ void ControllerGPIO::begin() {
 
         auto pin = (uint8_t) n.toInt();
         fs.read(base_path + n + F("/type"), [this, &pin, &n](File &t) {
-            const auto gpio_type = (GPIO_TYPE) t.readString().toInt();
+            const auto gpio_type = (gpio::type) t.readString().toInt();
             fs.read(base_path + n + F("/value"), [&](File &v) {
-                switch (gpio_type) {
-                    case ANAL:
-                        analogWrite(pin, v.readString().toInt());
-                        break;
-                    case DIGI:
-                        digitalWrite(pin, (uint8_t) v.readString().toInt());
-                        break;
+                if (gpio_type == LINEAR) {
+                    analogWrite(pin, v.readString().toInt());
+                } else if (gpio_type == DIGITAL) {
+                    digitalWrite(pin, (uint8_t) v.readString().toInt());
                 }
             });
         });
@@ -38,48 +61,65 @@ void ControllerGPIO::delete_gpio(Request *request) const {
 }
 
 void ControllerGPIO::set_mode(Request *request) const {
-    const auto pin = (uint8_t) request->pathArg(0).toInt();
-    const auto mode = (GPIO_MODE) (request->pathArg(1).length() - 5);
+    const auto pin = get_digit(request->pathArg(0));
+    const auto mode = get_mode(request->pathArg(1));
+
+    if (pin < 0 || mode == NONE) {
+        return request->send(400);
+    }
+
     pinMode(pin, mode);
     fs.write(base_path + pin + F("/mode"), [&](File &f) { f.print(mode); });
     request->send(200);
 }
 
 void ControllerGPIO::toggle(Request *request) const {
-    const auto pin = (uint8_t) request->pathArg(0).toInt();
+    const auto pin = get_digit(request->pathArg(0));
     const auto value = (uint8_t) !digitalRead(pin);
+
+    if (pin < 0) {
+        return request->send(400);
+    }
+
     digitalWrite(pin, value);
     fs.write(base_path + pin + F("/value"), [&](File &f) { f.print(value); });
-    fs.write(base_path + pin + F("/type"), [&](File &f) { f.print(DIGI); });
+    fs.write(base_path + pin + F("/type"), [&](File &f) { f.print(DIGITAL); });
     request->send(200);
 }
 
 void ControllerGPIO::write(Request *request) const {
-    const auto pin = (uint8_t) request->pathArg(0).toInt();
-    const auto type = (GPIO_TYPE) request->pathArg(1).length();
-    const auto value = request->pathArg(2).toInt();
-    if (type == ANAL) {
-        analogWrite(pin, value);
-    } else if (type == DIGI) {
-        digitalWrite(pin, (uint8_t) value);
-    } else {
+    const auto pin = get_digit(request->pathArg(0));
+    const auto type = get_type(request->pathArg(1));
+    const auto value = get_digit(request->pathArg(2));
+
+    if (pin < 0 || type == INVALID || value < 0) {
         return request->send(400);
     }
+
+    if (type == LINEAR) {
+        analogWrite(pin, value);
+    } else if (type == DIGITAL) {
+        digitalWrite(pin, (uint8_t) value);
+    }
+
     fs.write(base_path + pin + F("/value"), [&](File &f) { f.print(value); });
     fs.write(base_path + pin + F("/type"), [&](File &f) { f.print(type); });
     request->send(200);
 }
 
 void ControllerGPIO::read(Request *request) const {
-    const auto pin = (uint8_t) request->pathArg(0).toInt();
-    const auto mode = (GPIO_TYPE) request->pathArg(1).length();
-    auto value = 0;
-    if (mode == ANAL) {
-        value = analogRead(pin);
-    } else if (mode == DIGI) {
-        value = digitalRead(pin);
-    } else {
+    const auto pin = get_digit(request->pathArg(0));
+    const auto type = get_type(request->pathArg(1));
+
+    if (pin < 0 || type == INVALID) {
         return request->send(400);
+    }
+
+    auto value = 0;
+    if (type == LINEAR) {
+        value = analogRead(pin);
+    } else if (type == DIGITAL) {
+        value = digitalRead(pin);
     }
 
     StaticJsonDocument<32> doc;
@@ -91,9 +131,13 @@ void ControllerGPIO::read(Request *request) const {
 }
 
 void ControllerGPIO::info(Request *request) const {
-    StaticJsonDocument<128> doc;
-    String path = base_path + request->pathArg(0) + F("/");
+    auto pin = get_digit(request->pathArg(0));
+    if (pin < 0) {
+        return request->send(400);
+    }
 
+    StaticJsonDocument<128> doc;
+    String path = base_path + pin + F("/");
     fs.ls(path, [&](const String &n, const bool dir) {
         if (dir) return;
 
@@ -124,36 +168,36 @@ void ControllerGPIO::list(Request *request) const {
     request->send(200, mimeType(mime::json), response);
 }
 
-void ControllerGPIO::subscribe(EspServer &rest) const {
-    rest.on(HTTP_GET, F(R"(^\/api\/v1\/gpio$)"),
+void ControllerGPIO::subscribe(EspServer &rest) {
+    rest.on(HTTP_GET, Uri(F("/api/v1/gpio")),
             std::bind(&ControllerGPIO::list, this, std::placeholders::_1));
-    rest.on(HTTP_GET, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})$)"),
+    rest.on(HTTP_GET, UriBraces(F("/api/v1/gpio/{}")),
             std::bind(&ControllerGPIO::info, this, std::placeholders::_1));
-    rest.on(HTTP_PUT, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})$)"),
+    rest.on(HTTP_PUT, UriBraces(F("/api/v1/gpio/{}")),
             std::bind(&ControllerGPIO::toggle, this, std::placeholders::_1));
-    rest.on(HTTP_DELETE, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})$)"),
+    rest.on(HTTP_DELETE, UriBraces(F("/api/v1/gpio/{}")),
             std::bind(&ControllerGPIO::delete_gpio, this, std::placeholders::_1));
-    rest.on(HTTP_GET, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})\/(analog|digital)$)"),
+    rest.on(HTTP_GET, UriBraces(F("/api/v1/gpio/{}/{}")),
             std::bind(&ControllerGPIO::read, this, std::placeholders::_1));
-    rest.on(HTTP_PUT, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})\/(analog|digital)\/([0-9]{1,4})$)"),
+    rest.on(HTTP_PUT, UriBraces(F("/api/v1/gpio/{}/{}/{}")),
             std::bind(&ControllerGPIO::write, this, std::placeholders::_1));
-    rest.on(HTTP_POST, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})\/(input|output)$)"),
+    rest.on(HTTP_POST, UriBraces(F("/api/v1/gpio/{}/{}")),
             std::bind(&ControllerGPIO::set_mode, this, std::placeholders::_1));
 }
 
-void ControllerGPIO::subscribe(EspWebSocket &ws) const {
-    ws.on(HTTP_GET, F(R"(^\/api\/v1\/gpio$)"),
-            std::bind(&ControllerGPIO::list, this, std::placeholders::_1), false);
-    ws.on(HTTP_GET, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})$)"),
-            std::bind(&ControllerGPIO::info, this, std::placeholders::_1), false);
-    ws.on(HTTP_PUT, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})$)"),
-            std::bind(&ControllerGPIO::toggle, this, std::placeholders::_1));
-    ws.on(HTTP_DELETE, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})$)"),
-            std::bind(&ControllerGPIO::delete_gpio, this, std::placeholders::_1));
-    ws.on(HTTP_GET, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})\/(analog|digital)$)"),
-            std::bind(&ControllerGPIO::read, this, std::placeholders::_1), false);
-    ws.on(HTTP_PUT, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})\/(analog|digital)\/([0-9]{1,4})$)"),
-            std::bind(&ControllerGPIO::write, this, std::placeholders::_1));
-    ws.on(HTTP_POST, F(R"(^\/api\/v1\/gpio\/([0-9]{1,2})\/(input|output)$)"),
-            std::bind(&ControllerGPIO::set_mode, this, std::placeholders::_1));
+void ControllerGPIO::subscribe(EspWebSocket &ws) {
+    ws.on(HTTP_GET, Uri(F("/api/v1/gpio")),
+          std::bind(&ControllerGPIO::list, this, std::placeholders::_1));
+    ws.on(HTTP_GET, UriBraces(F("/api/v1/gpio/{}")),
+          std::bind(&ControllerGPIO::info, this, std::placeholders::_1));
+    ws.on(HTTP_PUT, UriBraces(F("/api/v1/gpio/{}")),
+          std::bind(&ControllerGPIO::toggle, this, std::placeholders::_1));
+    ws.on(HTTP_DELETE, UriBraces(F("/api/v1/gpio/{}")),
+          std::bind(&ControllerGPIO::delete_gpio, this, std::placeholders::_1));
+    ws.on(HTTP_GET, UriBraces(F("/api/v1/gpio/{}/{}")),
+          std::bind(&ControllerGPIO::read, this, std::placeholders::_1));
+    ws.on(HTTP_PUT, UriBraces(F("/api/v1/gpio/{}/{}/{}")),
+          std::bind(&ControllerGPIO::write, this, std::placeholders::_1));
+    ws.on(HTTP_POST, UriBraces(F("/api/v1/gpio/{}/{}")),
+          std::bind(&ControllerGPIO::set_mode, this, std::placeholders::_1));
 }
