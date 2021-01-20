@@ -21,6 +21,7 @@ ControllerBearer controllerBearer(fileSystem, true, 20);
 
 std::vector<Service *> services{&fileSystem, &controllerGPIO, &controllerBearer, &controllerWiFi, &rest, &webSocket};
 
+// cppcheck-suppress unusedFunction
 void setup() {
     LOG_INIT(&DEBUG_ESP_PORT, MONITOR_SPEED);
     LOG("initializing");
@@ -38,6 +39,7 @@ void setup() {
     LOG("initialized");
 }
 
+// cppcheck-suppress unusedFunction
 void loop() {
     for (auto &service : services)
         service->cycle();
