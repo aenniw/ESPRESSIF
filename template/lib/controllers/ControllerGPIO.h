@@ -23,20 +23,19 @@ private:
 private:
     gpio::mode get_mode(const String &s) const;
     gpio::type get_type(const String &s) const;
-    int16_t get_digit(const String &s) const;
 protected:
     void list(Request *request) const;
     void info(Request *request) const;
     void read(Request *request) const;
     void write(Request *request) const;
     void toggle(Request *request) const;
-    void set_mode(Request *request) const;
-    void delete_gpio(Request *request) const;
+    void mode(Request *request) const;
+    void rm(Request *request) const;
 
 public:
     explicit ControllerGPIO(FileSystem &fs) : base_path(F("/gpio/")), fs(fs) {}
 
-    void begin() override;;
+    void begin() override;
     void subscribe(EspServer &rest) override;
     void subscribe(EspWebSocket &ws)  override;
     void cycle() override {};

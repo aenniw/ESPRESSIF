@@ -19,3 +19,23 @@ void __log__(const __FlashStringHelper *fmt, ...) {
     va_end(args);
     stream->println(buf);
 }
+
+long get_digit(const String &s) {
+    if (!s || s.isEmpty()) {
+        return -1;
+    }
+    for (char i : s) {
+        if (!isDigit(i)) return -1;
+    }
+    return s.toInt();
+}
+
+float get_float(const String &s) {
+    if (!s || s.isEmpty()) {
+        return -1;
+    }
+    for (char i : s) {
+        if (!isDigit(i) && i != '.') return -1;
+    }
+    return s.toFloat();
+}
