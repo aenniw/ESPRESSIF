@@ -43,6 +43,8 @@ public:
 
     void set_color(HtmlColor c, bool refresh = true);
     void set_color(HsbColor c, bool refresh = true);
+    bool set_brightness(float b);
+    float get_brightness() const;
     HsbColor get_color() const;
 
     bool animating() const;

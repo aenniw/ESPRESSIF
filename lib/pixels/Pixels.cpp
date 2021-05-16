@@ -20,6 +20,19 @@ void Pixels::set_color(HsbColor c, const bool refresh) {
     }
 }
 
+bool Pixels::set_brightness(const float b) {
+    if (b < 0 || b > 1) {
+        return false;
+    }
+    set_color(
+            HsbColor(color.H, color.S, b),
+            animation() == type::NONE
+    );
+    return true;
+};
+
+float Pixels::get_brightness() const { return color.B; };
+
 bool Pixels::set_animation(type t, uint16_t d) {
     if (d < 200 || t < 0 || t >= type::NONE) {
         return false;
