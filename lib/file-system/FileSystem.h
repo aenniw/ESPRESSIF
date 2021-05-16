@@ -14,20 +14,25 @@ typedef std::function<void(const String &n, const bool dir)> LsHandler;
 
 class FileSystem : public Service {
 private:
-    const bool formatOnError, restartOnError;
+    const bool formatOnReset, formatOnError, restartOnError;
     FS &fs = VFS;
+protected:
+    void factory_reset(uint32_t wait);
 public:
-    explicit FileSystem(bool formatOnError = false, bool restartOnError = false) :
-            formatOnError(formatOnError), restartOnError(restartOnError) {}
+    explicit FileSystem(bool formatOnReset = false, bool formatOnError = false, bool restartOnError = false) :
+            formatOnReset(formatOnReset), formatOnError(formatOnError), restartOnError(restartOnError) {}
 
     void begin() override;
 
+    void format();
     bool ls(const String &dirname, const LsHandler &h);
     bool write(const String &path, const FileHandler &h, const char *mode = "w");
     bool read(const String &path, const FileHandler &h);
     bool rm(const String &path);
     bool mv(const String &s, const String &d);
     bool mkdir(const String &path);
+    bool exists(const String &path);
+    bool touch(const String &path);
 
     void cycle() override {};
 };

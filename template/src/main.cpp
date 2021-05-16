@@ -13,7 +13,7 @@
 #include <ControllerPixels.h>
 
 FileSystem fileSystem;
-NeoPixels<NeoGrbFeature, Neo800KbpsMethod> pixels(PIXELS_LEN, PIXELS_PIN);
+NeoPixels<NeoGrbFeature, Neo800KbpsMethod, NeoGammaTableMethod> pixels(PIXELS_LEN, PIXELS_PIN);
 
 EspServer rest(80, AUTH_USER, AUTH_PASS);
 EspWebSocket webSocket(81, AUTH_PASS);

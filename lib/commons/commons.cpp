@@ -39,3 +39,29 @@ float get_float(const String &s) {
     }
     return s.toFloat();
 }
+
+uint32_t get_chip_id() {
+#ifdef ARDUINO_ARCH_ESP32
+    uint32_t chipId = 0u;
+    for (int i = 0; i < 17; i = i + 8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+    }
+    return chipId;
+#else
+    return ESP.getChipId();
+#endif
+}
+
+uint32_t get_random() {
+#ifdef ARDUINO_ARCH_ESP32
+    return esp_random();
+#else
+    return ESP.random();
+#endif
+}
+
+std::string get_name(const std::string &prefix) {
+    char hex[9] = "00000000";
+    sprintf(hex, "%08x", get_random());
+    return prefix + "-" + hex;
+}
