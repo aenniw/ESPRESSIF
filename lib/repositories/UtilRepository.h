@@ -4,6 +4,8 @@
 #include <FileSystem.h>
 
 class UtilRepository {
+public:
+    const static String BLE_RESET_HANDLE;
 private:
     const String base_path;
     FileSystem &fs;

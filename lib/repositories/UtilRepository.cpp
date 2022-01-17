@@ -1,5 +1,7 @@
 #include "UtilRepository.h"
 
+const String UtilRepository::BLE_RESET_HANDLE = "/ble-reset";
+
 std::string UtilRepository::get_name(const std::string &fallback, bool init) {
     std::string name = fallback;
     auto exists = fs.read(base_path + F("name"), [&](File &f) {
@@ -31,4 +33,5 @@ void UtilRepository::set_secret(uint32_t s) {
     fs.write(base_path + F("secret"), [&](File &f) {
         f.write(reinterpret_cast<uint8_t *>(&s), 4);
     });
+    fs.rm(BLE_RESET_HANDLE);
 }

@@ -9,8 +9,6 @@
 #include <BleControllerUtil.h>
 #include <BleControllerPixels.h>
 
-const auto BLE_RESET_HANDLE = F("/ble-reset");
-
 OneButton rightButton(GPIO_NUM_16, true),
         leftButton(GPIO_NUM_17, true);
 
@@ -48,9 +46,9 @@ void setup() {
     for (auto &service: services)
         service->begin();
 
-    if (!fileSystem.exists(BLE_RESET_HANDLE)) {
+    if (!fileSystem.exists(UtilRepository::BLE_RESET_HANDLE)) {
         BleServer::rm_bonds();
-        fileSystem.touch(BLE_RESET_HANDLE);
+        fileSystem.touch(UtilRepository::BLE_RESET_HANDLE);
     }
 
     leftButton.attachClick([](void *param) { ((BleControllerPixels *) param)->toggle(); }, pixelsBle);

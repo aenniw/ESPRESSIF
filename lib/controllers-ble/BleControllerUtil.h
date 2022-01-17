@@ -3,7 +3,23 @@
 #include <commons.h>
 #include <BleServer.h>
 #include <UtilRepository.h>
+#include <MD5Builder.h>
 #include <esp_ota_ops.h>
+
+typedef struct {
+    uint32_t length;
+    struct {
+        uint32_t type: 8;
+    };
+    union {
+        uint64_t md5_hi;
+        uint8_t md5_hi8[8];
+    };
+    union {
+        uint64_t md5_le;
+        uint8_t md5_le8[8];
+    };
+} ble_ota_header_t;
 
 class BleControllerUtil : public Subscriber<BleServer> {
 public:
@@ -14,11 +30,12 @@ public:
             UUID_FW_VERSION = 0x02f3704e,
             UUID_HW_VERSION = 0x04f3704e;
 private:
-    esp_ota_handle_t otaHandler = 0;
-    bool updateFlag = false;
-
     std::string fw_version, hw_version;
     UtilRepository &repository;
+
+    MD5Builder md5;
+    bool ota_streaming = false;
+    ble_ota_header_t ota_header = {};
 protected:
     bool set_name(BLECharacteristic &c);
     bool set_secret(BLECharacteristic &c);

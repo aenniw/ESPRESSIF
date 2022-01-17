@@ -21,3 +21,7 @@ pip install -r requirements.txt
 ```bash
 ./make
 ```
+
+## FAQ
+
+- delta `BLE` firmware patch `detools create_patch -c heatshrink firmware-old.bin firmware.bin firmware.patch`
