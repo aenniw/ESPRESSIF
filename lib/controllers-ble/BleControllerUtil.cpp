@@ -1,4 +1,5 @@
 #include <BleControllerUtil.h>
+#include <esp_ota.h>
 
 void BleControllerUtil::hardware(BLECharacteristic &c) const {
     LOG("ble - hw %s", hw_version.c_str());
@@ -24,31 +25,73 @@ bool BleControllerUtil::set_secret(BLECharacteristic &c) {
         repository.set_secret(
                 (uint32_t) strtol(pin.c_str(), nullptr, 10)
         );
-        BleServer::rm_bonds();
+        VFS.remove(UtilRepository::BLE_RESET_HANDLE);
     }
     return false;
 }
 
 bool BleControllerUtil::set_firmware(BLECharacteristic &c) {
-    std::string data = c.getValue();
-    if (!updateFlag) {
-        LOG("ble - ota - start");
-        esp_ota_begin(esp_ota_get_next_update_partition(nullptr), OTA_SIZE_UNKNOWN, &otaHandler);
-        updateFlag = true;
+    size_t offset = 0, len = c.getValue().length();
+    auto data = c.getData();
+
+    if (!ota_streaming && len >= sizeof(ble_ota_header_t)) {
+        ota_header = reinterpret_cast<ble_ota_header_t *>(data)[0];
+        offset = sizeof(ble_ota_header_t);
+        ota_streaming = true;
+        md5.begin();
+
+        VFS.remove(Firmware::PATCH);
+        VFS.remove(Firmware::BINARY);
+        LOG("ble - ota - start %d %d, %llx%llx", ota_header.length, ota_header.type,
+            ota_header.md5_le, ota_header.md5_hi);
     }
-    if (data.length() > 0) {
-        esp_ota_write(otaHandler, data.c_str(), data.length());
-        if (data.length() != 512) {
-            esp_ota_end(otaHandler);
-            if (ESP_OK == esp_ota_set_boot_partition(esp_ota_get_next_update_partition(nullptr))) {
-                LOG("ble - ota - finish");
-            } else {
-                LOG("ble - ota - error");
-                updateFlag = false;
+
+    auto indicate = false;
+    if (ota_streaming) {
+        const auto type = (ota::type) ota_header.type;
+        size_t dataLen = len - offset, uploaded_size;
+        String firmware = type == ota::BINARY ?
+                          Firmware::BINARY : Firmware::PATCH;
+
+        const auto  exists = VFS.exists(firmware);
+        File f = VFS.open(firmware, exists ? FILE_APPEND : FILE_WRITE);
+        uploaded_size = (exists ? f.size() : 0u) + f.write(data + offset, dataLen);
+        md5.add(data + offset, dataLen);
+        f.close();
+
+        LOG("ble - ota - uploaded %d/%d - %d", uploaded_size, ota_header.length, dataLen);
+
+        if (uploaded_size >= ota_header.length) {
+            uint8_t hash[16] = {0u};
+            md5.calculate();
+            md5.getBytes(hash);
+
+            bool checksum = true;
+            for (uint8_t i = 0; i < 8; i++) {
+                if (hash[7 - i] != ota_header.md5_le8[i] ||
+                    hash[15 - i] != ota_header.md5_hi8[i]) {
+                    checksum = false;
+                }
             }
+
+            if (uploaded_size == ota_header.length && checksum) {
+                LOG("ble - ota - flashing");
+                f = VFS.open(firmware, FILE_READ);
+                indicate = type == ota::BINARY ?
+                           ota_flash_bin(f) :
+                           ota_flash_patch(f);
+                f.close();
+                LOG("ble - ota - flashed %d", indicate);
+            } else {
+                LOG("ble - ota - checksum invalid %s", md5.toString().c_str());
+            }
+            LOG("ble - ota - cleanup");
+            VFS.remove(firmware);
+            ota_streaming = false;
         }
     }
-    return false;
+
+    return indicate;
 }
 
 void BleControllerUtil::subscribe(BleServer &ble) {

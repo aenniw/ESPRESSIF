@@ -35,6 +35,7 @@ void BleServer::begin() {
     security.setStaticPIN(secret);
     security.setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
 
+    server->setCallbacks(this);
     for (auto &controller : controllers)
         server->getServiceByUUID(controller)->start();
 
@@ -48,7 +49,7 @@ void BleServer::begin() {
 }
 
 BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, const BleRHandler &handler,
-                   const esp_gatt_perm_t perm, const uint32_t numHandles) {
+                                 const esp_gatt_perm_t perm, const uint32_t numHandles) {
     auto pCharacteristic = service(sUuid, numHandles)->createCharacteristic(
             uuid, BLECharacteristic::PROPERTY_READ
     );
@@ -58,7 +59,7 @@ BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, cons
 }
 
 BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, const BleWHandler &handler,
-                   const esp_gatt_perm_t perm, const uint32_t numHandles) {
+                                 const esp_gatt_perm_t perm, const uint32_t numHandles) {
     auto pCharacteristic = service(sUuid, numHandles)->createCharacteristic(
             uuid, BLECharacteristic::PROPERTY_WRITE |
                   BLECharacteristic::PROPERTY_INDICATE
@@ -69,8 +70,9 @@ BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, cons
     return pCharacteristic;
 }
 
-BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, const BleRHandler &read, const BleWHandler &write,
-                   const esp_gatt_perm_t perm, const uint32_t numHandles) {
+BLECharacteristic *
+BleServer::on(const uint32_t sUuid, const uint32_t uuid, const BleRHandler &read, const BleWHandler &write,
+              const esp_gatt_perm_t perm, const uint32_t numHandles) {
     auto pCharacteristic = service(sUuid, numHandles)->createCharacteristic(
             uuid, BLECharacteristic::PROPERTY_READ |
                   BLECharacteristic::PROPERTY_WRITE |
@@ -84,4 +86,26 @@ BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, cons
 
 void BleServer::serve(Subscriber<BleServer> *c) {
     this->subscriptions.push_back(c);
+}
+
+void BleServer::onConnect(BLEServer *s) {
+    BLEDevice::startAdvertising();
+}
+
+BleCallback::BleCallback(BleRHandler read) : read(std::move(read)), write(nullptr) {}
+
+BleCallback::BleCallback(BleWHandler write) : read(nullptr), write(std::move(write)) {}
+
+BleCallback::BleCallback(BleRHandler read, BleWHandler write) : read(std::move(read)), write(std::move(write)) {}
+
+void BleCallback::onRead(BLECharacteristic *pCharacteristic) {
+    if (read && pCharacteristic->getValue().empty()) {
+        read(*pCharacteristic);
+    }
+}
+
+void BleCallback::onWrite(BLECharacteristic *pCharacteristic) {
+    if (write && write(*pCharacteristic)) {
+        pCharacteristic->notify();
+    }
 }

@@ -1,13 +1,7 @@
 #pragma once
 
+#include <VFS.h>
 #include <commons.h>
-#if defined(ARDUINO_ARCH_ESP8266)
-#include <LittleFS.h>
-#define VFS LittleFS
-#elif defined(ARDUINO_ARCH_ESP32)
-#include <SPIFFS.h>
-#define VFS SPIFFS
-#endif
 
 typedef std::function<void(File &f)> FileHandler;
 typedef std::function<void(const String &n, const bool dir)> LsHandler;

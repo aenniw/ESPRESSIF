@@ -14,25 +14,16 @@ private:
     const BleRHandler read;
     const BleWHandler write;
 public:
-    explicit BleCallback(BleRHandler read) : read(std::move(read)), write(nullptr) {}
-    explicit BleCallback(BleWHandler write) : read(nullptr), write(std::move(write)) {}
-    BleCallback(BleRHandler read, BleWHandler write) : read(std::move(read)), write(std::move(write)) {}
+    explicit BleCallback(BleRHandler read);
+    explicit BleCallback(BleWHandler write);
+    BleCallback(BleRHandler read, BleWHandler write);
 
-    void onRead(BLECharacteristic *pCharacteristic) override {
-        if (read && pCharacteristic->getValue().empty()) {
-            read(*pCharacteristic);
-        }
-    };
-
-    void onWrite(BLECharacteristic *pCharacteristic) override {
-        if (write && write(*pCharacteristic)) {
-            pCharacteristic->notify();
-        }
-    }
+    void onRead(BLECharacteristic *pCharacteristic) override;;
+    void onWrite(BLECharacteristic *pCharacteristic) override;
 
 };
 
-class BleServer : public Service {
+class BleServer : public Service , public BLEServerCallbacks{
 private:
     std::string name, manufacturer;
     uint32_t secret;
@@ -47,20 +38,18 @@ public:
     explicit BleServer(std::string name, std::string manufacturer, uint32_t secret);
 
     void begin() override;
-
     void cycle() override {}
-
-    static void rm_bonds();
 
     BLECharacteristic *on(uint32_t sUuid, uint32_t uuid, const BleRHandler &handler,
                           esp_gatt_perm_t perm = ESP_GATT_PERM_READ, uint32_t numHandles = 15);
-
     BLECharacteristic *on(uint32_t sUuid, uint32_t uuid, const BleWHandler &handler,
                           esp_gatt_perm_t perm = ESP_GATT_PERM_WRITE, uint32_t numHandles = 15);
-
     BLECharacteristic *on(uint32_t sUuid, uint32_t uuid, const BleRHandler &read, const BleWHandler &write,
                           esp_gatt_perm_t perm = ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE,
                           uint32_t numHandles = 15);
 
     void serve(Subscriber<BleServer> *c);
+    void onConnect(BLEServer *pServer) override;
+
+    static void rm_bonds();
 };
