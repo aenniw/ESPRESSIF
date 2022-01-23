@@ -1,4 +1,5 @@
 #include "BleServer.h"
+#include <esp_gap_ble_api.h>
 
 void BleServer::rm_bonds() {
     auto dev_num = esp_ble_get_bond_device_num();
@@ -10,7 +11,7 @@ void BleServer::rm_bonds() {
     }
 }
 
-BLEService *BleServer::service(const uint32_t sUuid, uint32_t numHandles) {
+BLEService *BleServer::service(const NimBLEUUID sUuid, uint32_t numHandles) {
     auto service = server->getServiceByUUID(sUuid);
     if (service == nullptr) {
         service = server->createService(sUuid, numHandles);
@@ -31,7 +32,6 @@ void BleServer::begin() {
     for (const auto &subscription : subscriptions)
         subscription->subscribe(*this);
 
-    BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT);
     security.setStaticPIN(secret);
     security.setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
 
@@ -48,39 +48,34 @@ void BleServer::begin() {
     advertising->start();
 }
 
-BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, const BleRHandler &handler,
-                                 const esp_gatt_perm_t perm, const uint32_t numHandles) {
+BLECharacteristic *BleServer::on(const NimBLEUUID sUuid, const NimBLEUUID uuid, const BleRHandler &handler,
+                                 const uint32_t numHandles) {
     auto pCharacteristic = service(sUuid, numHandles)->createCharacteristic(
-            uuid, BLECharacteristic::PROPERTY_READ
+            uuid, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::READ_ENC
     );
     pCharacteristic->setCallbacks(new BleCallback(handler));
-    pCharacteristic->setAccessPermissions(perm);
     return pCharacteristic;
 }
 
-BLECharacteristic *BleServer::on(const uint32_t sUuid, const uint32_t uuid, const BleWHandler &handler,
-                                 const esp_gatt_perm_t perm, const uint32_t numHandles) {
+BLECharacteristic *BleServer::on(const NimBLEUUID sUuid, const NimBLEUUID uuid, const BleWHandler &handler,
+                                 const uint32_t numHandles) {
     auto pCharacteristic = service(sUuid, numHandles)->createCharacteristic(
-            uuid, BLECharacteristic::PROPERTY_WRITE |
-                  BLECharacteristic::PROPERTY_INDICATE
+            uuid, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC |
+                  NIMBLE_PROPERTY::INDICATE
     );
-    pCharacteristic->addDescriptor(new BLE2902());
     pCharacteristic->setCallbacks(new BleCallback(handler));
-    pCharacteristic->setAccessPermissions(perm);
     return pCharacteristic;
 }
 
 BLECharacteristic *
-BleServer::on(const uint32_t sUuid, const uint32_t uuid, const BleRHandler &read, const BleWHandler &write,
-              const esp_gatt_perm_t perm, const uint32_t numHandles) {
+BleServer::on(const NimBLEUUID sUuid, const NimBLEUUID uuid, const BleRHandler &read, const BleWHandler &write,
+              const uint32_t numHandles) {
     auto pCharacteristic = service(sUuid, numHandles)->createCharacteristic(
-            uuid, BLECharacteristic::PROPERTY_READ |
-                  BLECharacteristic::PROPERTY_WRITE |
-                  BLECharacteristic::PROPERTY_NOTIFY
+            uuid, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::READ_ENC |
+                  NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC |
+                  NIMBLE_PROPERTY::NOTIFY
     );
-    pCharacteristic->addDescriptor(new BLE2902());
     pCharacteristic->setCallbacks(new BleCallback(read, write));
-    pCharacteristic->setAccessPermissions(perm);
     return pCharacteristic;
 }
 
@@ -99,7 +94,7 @@ BleCallback::BleCallback(BleWHandler write) : read(nullptr), write(std::move(wri
 BleCallback::BleCallback(BleRHandler read, BleWHandler write) : read(std::move(read)), write(std::move(write)) {}
 
 void BleCallback::onRead(BLECharacteristic *pCharacteristic) {
-    if (read && pCharacteristic->getValue().empty()) {
+    if (read && pCharacteristic->getDataLength() == 0) {
         read(*pCharacteristic);
     }
 }
@@ -108,4 +103,8 @@ void BleCallback::onWrite(BLECharacteristic *pCharacteristic) {
     if (write && write(*pCharacteristic)) {
         pCharacteristic->notify();
     }
+}
+
+NimBLEUUID fullUUID(uint32_t uuid) {
+    return {uuid, 0x0000, 0x1000u, (uint64_t(0x8000u) << 48u) + 0x00805f9b34fbu};
 }

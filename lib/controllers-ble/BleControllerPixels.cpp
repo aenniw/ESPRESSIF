@@ -3,11 +3,11 @@
 void BleControllerPixels::length(BLECharacteristic &c) const {
     auto l = repository.get_length();
     LOG("ble - length %d", l);
-    c.setValue(reinterpret_cast<uint8_t *>(&l), 1);
+    c.setValue(l);
 }
 
 bool BleControllerPixels::set_length(BLECharacteristic &c) {
-    repository.set_length(c.getData()[0]);
+    repository.set_length(c.getValue<uint8_t>());
     return true;
 }
 
@@ -18,19 +18,18 @@ void BleControllerPixels::power(BLECharacteristic &c) const {
 }
 
 bool BleControllerPixels::set_power(BLECharacteristic &c) {
-    const uint16_t p = c.getData()[0] + (c.getData()[1] << 8);
-    repository.set_power(p);
+    repository.set_power(c.getValue<uint16_t>());
     return true;
 }
 
 void BleControllerPixels::state(BLECharacteristic &c) const {
     auto s = (uint8_t) pixels.get_state();
     LOG("ble - state %d", s);
-    c.setValue(reinterpret_cast<uint8_t *>(&s), 1);
+    c.setValue(s);
 }
 
 bool BleControllerPixels::set_state(BLECharacteristic &c) {
-    const auto s = (pixel::state) c.getData()[0];
+    const auto s = (pixel::state) c.getValue<uint8_t>();
     pixels.set_state(s);
     repository.set_state(s);
     return true;
@@ -39,11 +38,11 @@ bool BleControllerPixels::set_state(BLECharacteristic &c) {
 void BleControllerPixels::color(BLECharacteristic &c) const {
     auto color = repository.get_color();
     LOG("ble - color %d %d", color.hue, color.sat);
-    c.setValue(reinterpret_cast<uint8_t *>(&color), sizeof(pixel::color));
+    c.setValue(color);
 }
 
 bool BleControllerPixels::set_color(BLECharacteristic &c) {
-    const pixel::color color = reinterpret_cast<pixel::color *>(c.getData())[0];
+    const pixel::color color = c.getValue<pixel::color>();
     pixels.set_color(color);
     repository.set_color(color);
     return true;
@@ -52,30 +51,45 @@ bool BleControllerPixels::set_color(BLECharacteristic &c) {
 void BleControllerPixels::brightness(BLECharacteristic &c) const {
     auto b = pixels.get_brightness();
     LOG("ble - brightness %d", b);
-    c.setValue(reinterpret_cast<uint8_t *>(&b), 1);
+    c.setValue(b);
 }
 
 bool BleControllerPixels::set_brightness(BLECharacteristic &c) {
-    auto b = c.getData()[0];
+    auto b = c.getValue<uint8_t>();
     pixels.set_brightness(b);
     repository.set_brightness(b);
     return true;
 }
 
-void BleControllerPixels::mode(BLECharacteristic &c) const {
-    auto m = (uint8_t) repository.get_mode();
-    auto p = repository.get_params();
-    const auto len = 1 + sizeof(pixel::params);
+typedef struct {
+    uint32_t mode: 8;
+    uint32_t duration: 16;
+    uint32_t chained: 1;
+    uint32_t randomized: 1;
+    uint32_t : 6;
+} mode_msg;
 
-    LOG("ble - mode %d %d %d %d", m, p.duration, p.randomized, p.chained);
-    uint8_t data[len] = {m};
-    memcpy(data + 1, reinterpret_cast<uint8_t *>(&p), sizeof(pixel::params));
-    c.setValue(data, len);
+void BleControllerPixels::mode(BLECharacteristic &c) const {
+    auto p = repository.get_params();
+    mode_msg m = {
+            .mode = (uint8_t) repository.get_mode(),
+            .duration = p.duration,
+            .chained = p.chained,
+            .randomized = p.randomized
+    };
+
+    LOG("ble - mode %d %d %d %d", m.mode, m.duration, m.randomized, m.chained);
+    c.setValue(m);
 }
 
 bool BleControllerPixels::set_mode(BLECharacteristic &c) {
-    const auto m = (pixel::mode) c.getData()[0];
-    const pixel::params p = reinterpret_cast<pixel::params *>(c.getData() + 1)[0];
+    const auto data = c.getValue<mode_msg>();
+    const auto m = (pixel::mode) data.mode;
+    const pixel::params p = {
+            .duration = data.duration,
+            .chained = data.chained,
+            .randomized = data.randomized,
+    };
 
     pixels.set_mode(m, p);
     repository.set_mode(m);
@@ -91,50 +105,53 @@ void BleControllerPixels::colors(BLECharacteristic &c) const {
 }
 
 bool BleControllerPixels::set_colors(BLECharacteristic &c) {
-    auto len = c.getValue().size() / sizeof(pixel::color);
-    auto data = reinterpret_cast<pixel::color *>(c.getData());
-    pixels.set_colors(len, data);
-    repository.set_colors(len, data);
+    auto msg = c.getValue();
+    auto len = msg.length() / sizeof(pixel::color);
+    auto colors = reinterpret_cast<pixel::color *>((uint8_t *) msg.data());
+    pixels.set_colors(len, colors);
+    repository.set_colors(len, colors);
     return true;
 }
+
+const NimBLEUUID  BleControllerPixels::UUID = fullUUID(0xab5ff770u);
+const NimBLEUUID  BleControllerPixels::UUID_COLOR = fullUUID(0x05f3704eu);
+const NimBLEUUID  BleControllerPixels::UUID_BRIGHTNESS = fullUUID(0x604d979du);
+const NimBLEUUID  BleControllerPixels::UUID_MODE = fullUUID(0xa7601c29u);
+const NimBLEUUID  BleControllerPixels::UUID_COLORS = fullUUID(0xb532fb4eu);
+const NimBLEUUID  BleControllerPixels::UUID_STATE = fullUUID(0xb533fb4eu);
+const NimBLEUUID  BleControllerPixels::UUID_POWER = fullUUID(0xb534fb4eu);
+const NimBLEUUID  BleControllerPixels::UUID_LENGTH = fullUUID(0xb535fb4eu);
 
 void BleControllerPixels::subscribe(BleServer &ble) {
     repository.configure(pixels);
 
     ble.on(UUID, UUID_POWER,
            std::bind(&BleControllerPixels::power, this, std::placeholders::_1),
-           std::bind(&BleControllerPixels::set_power, this, std::placeholders::_1),
-           ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED, 30);
+           std::bind(&BleControllerPixels::set_power, this, std::placeholders::_1), 30);
     ble.on(UUID, UUID_LENGTH,
            std::bind(&BleControllerPixels::length, this, std::placeholders::_1),
-           std::bind(&BleControllerPixels::set_length, this, std::placeholders::_1),
-           ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
+           std::bind(&BleControllerPixels::set_length, this, std::placeholders::_1));
     stateCharacteristic = ble.on(
             UUID, UUID_STATE,
             std::bind(&BleControllerPixels::state, this, std::placeholders::_1),
-            std::bind(&BleControllerPixels::set_state, this, std::placeholders::_1),
-            ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED
+            std::bind(&BleControllerPixels::set_state, this, std::placeholders::_1)
     );
     ble.on(UUID, UUID_COLOR,
            std::bind(&BleControllerPixels::color, this, std::placeholders::_1),
-           std::bind(&BleControllerPixels::set_color, this, std::placeholders::_1),
-           ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
+           std::bind(&BleControllerPixels::set_color, this, std::placeholders::_1));
     brightnessCharacteristic = ble.on(
             UUID, UUID_BRIGHTNESS,
             std::bind(&BleControllerPixels::brightness, this, std::placeholders::_1),
-            std::bind(&BleControllerPixels::set_brightness, this, std::placeholders::_1),
-            ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED
+            std::bind(&BleControllerPixels::set_brightness, this, std::placeholders::_1)
     );
     modeCharacteristic = ble.on(
             UUID, UUID_MODE,
             std::bind(&BleControllerPixels::mode, this, std::placeholders::_1),
-            std::bind(&BleControllerPixels::set_mode, this, std::placeholders::_1),
-            ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED
+            std::bind(&BleControllerPixels::set_mode, this, std::placeholders::_1)
     );
     ble.on(UUID, UUID_COLORS,
            std::bind(&BleControllerPixels::colors, this, std::placeholders::_1),
-           std::bind(&BleControllerPixels::set_colors, this, std::placeholders::_1),
-           ESP_GATT_PERM_READ_ENCRYPTED | ESP_GATT_PERM_WRITE_ENCRYPTED);
+           std::bind(&BleControllerPixels::set_colors, this, std::placeholders::_1));
 }
 
 void BleControllerPixels::toggle() {
