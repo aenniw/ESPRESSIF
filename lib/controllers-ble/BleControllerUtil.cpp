@@ -21,7 +21,7 @@ bool BleControllerUtil::set_name(BLECharacteristic &c) {
 
 bool BleControllerUtil::set_secret(BLECharacteristic &c) {
     const auto pin = c.getValue();
-    if (pin.length() >= 6 && pin.length() <= 9) {
+    if (pin.length() == 6) {
         repository.set_secret(
                 (uint32_t) strtol(pin.c_str(), nullptr, 10)
         );
@@ -31,8 +31,9 @@ bool BleControllerUtil::set_secret(BLECharacteristic &c) {
 }
 
 bool BleControllerUtil::set_firmware(BLECharacteristic &c) {
-    size_t offset = 0, len = c.getValue().length();
-    auto data = c.getData();
+    auto msg = c.getValue();
+    auto data = (uint8_t *) msg.data();
+    size_t offset = 0, len = msg.length();
 
     if (!ota_streaming && len >= sizeof(ble_ota_header_t)) {
         ota_header = reinterpret_cast<ble_ota_header_t *>(data)[0];
@@ -53,7 +54,7 @@ bool BleControllerUtil::set_firmware(BLECharacteristic &c) {
         String firmware = type == ota::BINARY ?
                           Firmware::BINARY : Firmware::PATCH;
 
-        const auto  exists = VFS.exists(firmware);
+        const auto exists = VFS.exists(firmware);
         File f = VFS.open(firmware, exists ? FILE_APPEND : FILE_WRITE);
         uploaded_size = (exists ? f.size() : 0u) + f.write(data + offset, dataLen);
         md5.add(data + offset, dataLen);
@@ -94,20 +95,17 @@ bool BleControllerUtil::set_firmware(BLECharacteristic &c) {
     return indicate;
 }
 
+const NimBLEUUID  BleControllerUtil::UUID = fullUUID(0xab5fa770u);
+const NimBLEUUID  BleControllerUtil::UUID_NAME = fullUUID(0x02f3714eu);
+const NimBLEUUID  BleControllerUtil::UUID_SECRET = fullUUID(0x02f3724eu);
+const NimBLEUUID  BleControllerUtil::UUID_FIRMWARE = fullUUID(0x03f3704eu);
+const NimBLEUUID  BleControllerUtil::UUID_FW_VERSION = fullUUID(0x02f3704eu);
+const NimBLEUUID  BleControllerUtil::UUID_HW_VERSION = fullUUID(0x04f3704eu);
+
 void BleControllerUtil::subscribe(BleServer &ble) {
-    ble.on(UUID, UUID_FW_VERSION,
-           std::bind(&BleControllerUtil::firmware, this, std::placeholders::_1),
-           ESP_GATT_PERM_READ_ENCRYPTED, 24);
-    ble.on(UUID, UUID_HW_VERSION,
-           std::bind(&BleControllerUtil::hardware, this, std::placeholders::_1),
-           ESP_GATT_PERM_READ_ENCRYPTED);
-    ble.on(UUID, UUID_NAME,
-           (BleWHandler) std::bind(&BleControllerUtil::set_name, this, std::placeholders::_1),
-           ESP_GATT_PERM_WRITE_ENCRYPTED);
-    ble.on(UUID, UUID_SECRET,
-           (BleWHandler) std::bind(&BleControllerUtil::set_secret, this, std::placeholders::_1),
-           ESP_GATT_PERM_WRITE_ENCRYPTED);
-    ble.on(UUID, UUID_FIRMWARE,
-           (BleWHandler) std::bind(&BleControllerUtil::set_firmware, this, std::placeholders::_1),
-           ESP_GATT_PERM_WRITE_ENCRYPTED);
+    ble.on(UUID, UUID_FW_VERSION, std::bind(&BleControllerUtil::firmware, this, std::placeholders::_1), 24);
+    ble.on(UUID, UUID_HW_VERSION, std::bind(&BleControllerUtil::hardware, this, std::placeholders::_1));
+    ble.on(UUID, UUID_NAME, (BleWHandler) std::bind(&BleControllerUtil::set_name, this, std::placeholders::_1));
+    ble.on(UUID, UUID_SECRET, (BleWHandler) std::bind(&BleControllerUtil::set_secret, this, std::placeholders::_1));
+    ble.on(UUID, UUID_FIRMWARE, (BleWHandler) std::bind(&BleControllerUtil::set_firmware, this, std::placeholders::_1));
 }

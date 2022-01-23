@@ -62,11 +62,11 @@ void Pixels::set_mode(const pixel::mode m, const pixel::params p) {
         set_pixels(to_color(color), true);
     } else if (animator.IsAnimationActive(m)) {
         LOG("pixels - set_mode - scale_animation");
-        animator.ChangeAnimationDuration(m, 200 + p.duration);
+        animator.ChangeAnimationDuration(m, 200u + p.duration);
     } else {
         LOG("pixels - set_mode - set_animation");
         animator.StopAll();
-        animator.StartAnimation(m, 200 + p.duration, animations[m]);
+        animator.StartAnimation(m, 200u + p.duration, animations[m]);
     }
 }
 
@@ -74,6 +74,7 @@ void Pixels::set_colors(uint8_t l, pixel::color colors[]) {
     LOG("pixels - set_colors - %d", l);
     animation_colors.clear();
     for (uint8_t i = 0; i < l; i++) {
+        LOG("pixels - set_colors - %d %d", colors[i].hue, colors[i].sat);
         animation_colors.push_back(colors[i]);
     }
 }

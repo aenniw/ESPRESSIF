@@ -116,7 +116,11 @@ public:
     NeoPixels(uint16_t len, uint8_t pin, uint16_t mA = 1000, uint8_t V = 5) :
             NeoPixelBrightnessBus<T_COLOR_FEATURE, T_METHOD>(len, pin), Pixels(len) {
         this->power_cap = pixel::power_scale(mA, V, len);
+        LOG("pixels - power_cap - %d", power_cap);
     }
-    void set_brightness(uint8_t b) override { this->SetBrightness(map(b, 0, 255, 0, power_cap)); };
+    void set_brightness(uint8_t b) override {
+        LOG("pixels - set_brightness - %d", b);
+        this->SetBrightness(map(b, 0, 255, 0, power_cap));
+    };
     uint8_t get_brightness() const override { return map(this->GetBrightness(), 0, power_cap, 0, 255); };
 };

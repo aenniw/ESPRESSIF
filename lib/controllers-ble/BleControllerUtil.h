@@ -23,12 +23,7 @@ typedef struct {
 
 class BleControllerUtil : public Subscriber<BleServer> {
 public:
-    static const uint32_t UUID = 0xab5fa770,
-            UUID_NAME = 0x02f3714e,
-            UUID_SECRET = 0x02f3724e,
-            UUID_FIRMWARE = 0x03f3704e,
-            UUID_FW_VERSION = 0x02f3704e,
-            UUID_HW_VERSION = 0x04f3704e;
+    static const NimBLEUUID UUID, UUID_NAME, UUID_SECRET, UUID_FIRMWARE, UUID_FW_VERSION, UUID_HW_VERSION;
 private:
     std::string fw_version, hw_version;
     UtilRepository &repository;

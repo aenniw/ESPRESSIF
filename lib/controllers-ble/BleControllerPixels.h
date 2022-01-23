@@ -7,15 +7,8 @@
 
 class BleControllerPixels : public Subscriber<BleServer> {
 public:
-    const static uint32_t
-            UUID = 0xab5ff770,
-            UUID_COLOR = 0x05f3704e,
-            UUID_BRIGHTNESS = 0x604d979d,
-            UUID_MODE = 0xa7601c29,
-            UUID_COLORS = 0xb532fb4e,
-            UUID_STATE = 0xb533fb4e,
-            UUID_POWER = 0xb534fb4e,
-            UUID_LENGTH = 0xb535fb4e;
+    const static NimBLEUUID UUID, UUID_COLOR, UUID_BRIGHTNESS, UUID_MODE,
+            UUID_COLORS, UUID_STATE, UUID_POWER, UUID_LENGTH;
 private:
     Pixels &pixels;
     PixelsRepository &repository;
