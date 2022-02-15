@@ -7,6 +7,7 @@
   <tr>
     <td><img src="docs/img/wemos-d1.png"></td>
     <td><img src="docs/img/wroom-d1.png"></td>
+    <td><img src="docs/img/ttgo-t-display.jpg"></td>
   </tr> 
 </table>
 
