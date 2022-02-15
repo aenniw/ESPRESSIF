@@ -1,48 +1,68 @@
 #include <configuration.h>
 
 #include <Arduino.h>
-#include <OneButton.h>
 #include <commons.h>
 #include <FileSystem.h>
 #include <Pixels.h>
 #include <BleServer.h>
 #include <BleControllerUtil.h>
 #include <BleControllerPixels.h>
-
-OneButton rightButton(GPIO_NUM_16, true),
-        leftButton(GPIO_NUM_17, true);
+#include <Haptic.h>
 
 FileSystem fileSystem(true, true, true);
-PixelsRepository pixelRepository(fileSystem);
 UtilRepository utilRepository(fileSystem);
+BleControllerUtil controllerUtil(FW_VERSION, HW_VERSION, utilRepository);
+Haptic haptics(GPIO_NUM_33, GPIO_NUM_0, {GPIO_NUM_12, GPIO_NUM_27, GPIO_NUM_32});
+
+std::vector<PixelsSupplier> PixelsStrands = {
+        NeoPixelsRtm(GPIO_NUM_21, 0),
+#if PIXELS_STRANDS > 1
+        NeoPixelsRtm(GPIO_NUM_22, 1),
+#endif
+#if PIXELS_STRANDS > 2
+        NeoPixelsRtm(GPIO_NUM_23, 2)
+#endif
+};
 
 std::vector<Service *> services;
-std::vector<OneButton *> buttons = {&leftButton, &rightButton};
 
 // cppcheck-suppress unusedFunction
 void setup() {
     LOG_INIT(&DEBUG_ESP_PORT, MONITOR_SPEED);
     fileSystem.begin();
 
-    auto pixels = new NeoPixels<NeoGrbFeature, Neo800KbpsMethod, NeoGammaTableMethod>(
-            pixelRepository.get_length(PIXELS_LEN, true),
-            PIXELS_PIN,
-            pixelRepository.get_power(PIXELS_CURRENT, true),
-            PIXELS_POTENTIAL
-    );
-    auto pixelsBle = new BleControllerPixels(*pixels, pixelRepository);
+    LOG("setup");
     auto bleServer = new BleServer(
             utilRepository.get_name(BLE_NAME, true),
             BLE_MANUFACTURER,
             utilRepository.get_secret(BLE_SECRET)
     );
+    bleServer->serve(&controllerUtil);
 
-    bleServer->serve(new BleControllerUtil(FW_VERSION, HW_VERSION, utilRepository));
-    bleServer->serve(pixelsBle);
+    uint32_t length = 0;
+    const uint16_t current = utilRepository.get_power(PIXELS_CURRENT, true);
 
-    services.push_back(pixels);
+    PixelsRepository *repositories[PixelsStrands.size()];
+    for (size_t i = 0; i < PixelsStrands.size(); i++) {
+        repositories[i] = new PixelsRepository(fileSystem, i);
+        length += repositories[i]->get_length(PIXELS_LEN, true);
+    }
+
+    const auto power = pixel::power_scale(current, PIXELS_POTENTIAL, length);
+    for (size_t i = 0; i < PixelsStrands.size(); i++) {
+        auto pixels = PixelsStrands[i](repositories[i]->get_length(), power);
+        services.push_back(pixels);
+
+        auto controller = new BleControllerPixels(*pixels, *repositories[i]);
+        bleServer->serve(controller);
+        haptics.serve(controller);
+    }
+
     services.push_back(bleServer);
+    services.push_back(&haptics);
 
+    LOG("initialize");
+    services.shrink_to_fit();
     for (auto &service: services)
         service->begin();
 
@@ -50,17 +70,11 @@ void setup() {
         BleServer::rm_bonds();
         fileSystem.touch(UtilRepository::BLE_RESET_HANDLE);
     }
-
-    leftButton.attachClick([](void *param) { ((BleControllerPixels *) param)->toggle(); }, pixelsBle);
-    leftButton.attachDuringLongPress([](void *param) { ((BleControllerPixels *) param)->brighten(); }, pixelsBle);
-    rightButton.attachClick([](void *param) { ((BleControllerPixels *) param)->toggle_modes(); }, pixelsBle);
-    rightButton.attachDuringLongPress([](void *param) { ((BleControllerPixels *) param)->speedup(); }, pixelsBle);
+    LOG("initialized");
 }
 
 // cppcheck-suppress unusedFunction
 void loop() {
     for (auto &service: services)
         service->cycle();
-    for (auto &button: buttons)
-        button->tick();
 }

@@ -23,7 +23,7 @@ typedef struct {
 
 class BleControllerUtil : public Subscriber<BleServer> {
 public:
-    static const NimBLEUUID UUID, UUID_NAME, UUID_SECRET, UUID_FIRMWARE, UUID_FW_VERSION, UUID_HW_VERSION;
+    static const NimBLEUUID UUID, UUID_POWER, UUID_NAME, UUID_SECRET, UUID_FIRMWARE, UUID_FW_VERSION, UUID_HW_VERSION;
 private:
     std::string fw_version, hw_version;
     UtilRepository &repository;
@@ -32,6 +32,8 @@ private:
     bool ota_streaming = false;
     ble_ota_header_t ota_header = {};
 protected:
+    void power(BLECharacteristic &c) const;
+    bool set_power(BLECharacteristic &c);
     bool set_name(BLECharacteristic &c);
     bool set_secret(BLECharacteristic &c);
     void hardware(BLECharacteristic &c) const;

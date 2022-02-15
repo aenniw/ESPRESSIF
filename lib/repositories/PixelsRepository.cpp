@@ -1,5 +1,7 @@
 #include "PixelsRepository.h"
 
+const String PixelsRepository::base = "/pixels";
+
 uint8_t PixelsRepository::get_length(const uint8_t fallback, const bool init) {
     uint8_t l = fallback;
     auto exists = fs.read(base_path + F("length"), [&](File &f) {
@@ -14,23 +16,6 @@ uint8_t PixelsRepository::get_length(const uint8_t fallback, const bool init) {
 void PixelsRepository::set_length(const uint8_t l) {
     fs.write(base_path + F("length"), [&](File &f) {
         f.write(l);
-    });
-}
-
-uint16_t PixelsRepository::get_power(const uint16_t fallback, const bool init) {
-    uint16_t p = fallback;
-    auto exists = fs.read(base_path + F("power"), [&](File &f) {
-        f.read(reinterpret_cast<uint8_t *>(&p), 2);
-    });
-    if (!exists && init) {
-        this->set_power(fallback);
-    }
-    return p;
-}
-
-void PixelsRepository::set_power(uint16_t p) {
-    fs.write(base_path + F("power"), [&](File &f) {
-        f.write(reinterpret_cast<uint8_t *>(&p), 2);
     });
 }
 

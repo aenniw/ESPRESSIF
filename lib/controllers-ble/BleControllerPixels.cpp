@@ -11,19 +11,8 @@ bool BleControllerPixels::set_length(BLECharacteristic &c) {
     return true;
 }
 
-void BleControllerPixels::power(BLECharacteristic &c) const {
-    auto p = repository.get_power();
-    LOG("ble - power %d", p);
-    c.setValue(p);
-}
-
-bool BleControllerPixels::set_power(BLECharacteristic &c) {
-    repository.set_power(c.getValue<uint16_t>());
-    return true;
-}
-
 void BleControllerPixels::state(BLECharacteristic &c) const {
-    auto s = (uint8_t) pixels.get_state();
+    auto s = (uint8_t) repository.get_state();
     LOG("ble - state %d", s);
     c.setValue(s);
 }
@@ -49,7 +38,7 @@ bool BleControllerPixels::set_color(BLECharacteristic &c) {
 }
 
 void BleControllerPixels::brightness(BLECharacteristic &c) const {
-    auto b = pixels.get_brightness();
+    auto b = repository.get_brightness();
     LOG("ble - brightness %d", b);
     c.setValue(b);
 }
@@ -113,32 +102,28 @@ bool BleControllerPixels::set_colors(BLECharacteristic &c) {
     return true;
 }
 
-const NimBLEUUID  BleControllerPixels::UUID = fullUUID(0xab5ff770u);
 const NimBLEUUID  BleControllerPixels::UUID_COLOR = fullUUID(0x05f3704eu);
 const NimBLEUUID  BleControllerPixels::UUID_BRIGHTNESS = fullUUID(0x604d979du);
 const NimBLEUUID  BleControllerPixels::UUID_MODE = fullUUID(0xa7601c29u);
 const NimBLEUUID  BleControllerPixels::UUID_COLORS = fullUUID(0xb532fb4eu);
 const NimBLEUUID  BleControllerPixels::UUID_STATE = fullUUID(0xb533fb4eu);
-const NimBLEUUID  BleControllerPixels::UUID_POWER = fullUUID(0xb534fb4eu);
 const NimBLEUUID  BleControllerPixels::UUID_LENGTH = fullUUID(0xb535fb4eu);
 
 void BleControllerPixels::subscribe(BleServer &ble) {
     repository.configure(pixels);
 
-    ble.on(UUID, UUID_POWER,
-           std::bind(&BleControllerPixels::power, this, std::placeholders::_1),
-           std::bind(&BleControllerPixels::set_power, this, std::placeholders::_1), 30);
     ble.on(UUID, UUID_LENGTH,
            std::bind(&BleControllerPixels::length, this, std::placeholders::_1),
-           std::bind(&BleControllerPixels::set_length, this, std::placeholders::_1));
+           std::bind(&BleControllerPixels::set_length, this, std::placeholders::_1), 26);
     stateCharacteristic = ble.on(
             UUID, UUID_STATE,
             std::bind(&BleControllerPixels::state, this, std::placeholders::_1),
             std::bind(&BleControllerPixels::set_state, this, std::placeholders::_1)
     );
-    ble.on(UUID, UUID_COLOR,
-           std::bind(&BleControllerPixels::color, this, std::placeholders::_1),
-           std::bind(&BleControllerPixels::set_color, this, std::placeholders::_1));
+    colorCharacteristic = ble.on(
+            UUID, UUID_COLOR,
+            std::bind(&BleControllerPixels::color, this, std::placeholders::_1),
+            std::bind(&BleControllerPixels::set_color, this, std::placeholders::_1));
     brightnessCharacteristic = ble.on(
             UUID, UUID_BRIGHTNESS,
             std::bind(&BleControllerPixels::brightness, this, std::placeholders::_1),
@@ -154,7 +139,7 @@ void BleControllerPixels::subscribe(BleServer &ble) {
            std::bind(&BleControllerPixels::set_colors, this, std::placeholders::_1));
 }
 
-void BleControllerPixels::toggle() {
+void BleControllerPixels::toggle_state() {
     repository.set_state(
             repository.get_state() == pixel::ON ? pixel::OFF : pixel::ON
     );
@@ -164,33 +149,81 @@ void BleControllerPixels::toggle() {
     stateCharacteristic->notify();
 }
 
-void BleControllerPixels::brighten() {
-    auto value = repository.get_brightness();
-    repository.set_brightness(
-            value == 255u ? 0u : max(value + 5u, 255u)
-    );
+void BleControllerPixels::cycle_brightness(bool notify) {
+    if (repository.get_state() == pixel::OFF) {
+        return;
+    }
 
-    brightness(*brightnessCharacteristic);
-    set_brightness(*brightnessCharacteristic);
-    brightnessCharacteristic->notify();
+    static int inc = 5;
+    const auto value = pixels.get_brightness();
+    if (notify) {
+        repository.set_brightness(value);
+        brightness(*brightnessCharacteristic);
+        set_brightness(*brightnessCharacteristic);
+        brightnessCharacteristic->notify();
+    } else {
+        inc = value == 255 || value <= 10 ? -inc : inc;
+        pixels.set_brightness(min(max(value + inc, 10), 255));
+    }
 }
 
-void BleControllerPixels::speedup() {
-    pixel::params value = repository.get_params();
-    value.duration = value.duration == 1800u ?
-                     0u : max(value.duration + 50u, 1800u);
+void BleControllerPixels::cycle_color(bool notify) {
+    if (repository.get_state() == pixel::OFF ||
+        repository.get_mode() != pixel::STATIC) {
+        return;
+    }
 
-    repository.set_params(value);
-    mode(*modeCharacteristic);
-    set_mode(*modeCharacteristic);
-    modeCharacteristic->notify();
+    const uint16_t inc = 10u;
+    auto value = pixels.get_color();
+    if (notify) {
+        repository.set_color(value);
+        color(*colorCharacteristic);
+        set_color(*colorCharacteristic);
+        colorCharacteristic->notify();
+    } else {
+        if (value.hue + inc > 360u) {
+            value.sat = (value.sat + inc) % 101u;
+        }
+        value.hue = (value.hue + inc) % 361u;
+        pixels.set_color(value);
+    }
+}
+
+void BleControllerPixels::cycle_speed(bool notify) {
+    if (repository.get_state() == pixel::OFF ||
+        repository.get_mode() == pixel::STATIC) {
+        return;
+    }
+
+    static int inc = 25;
+    auto value = pixels.get_params();
+    if (notify) {
+        repository.set_params(value);
+        mode(*modeCharacteristic);
+        set_mode(*modeCharacteristic);
+        modeCharacteristic->notify();
+    } else {
+        inc = value.duration % 1800u == 0 ? -inc : inc;
+        value.duration = min(max((int) value.duration + inc, 0), 1800);
+        pixels.set_mode(pixels.get_mode(), value);
+    }
 }
 
 void BleControllerPixels::toggle_modes() {
+    if (repository.get_state() == pixel::OFF) {
+        return;
+    }
+
     pixel::mode m = repository.get_mode();
     pixel::params p = repository.get_params();
-    if (p.randomized && p.chained) {
+
+    if (m == pixel::STATIC) {
         m = (pixel::mode) ((m + 1) % (pixel::TRANSITION + 1));
+    } else if (p.randomized && p.chained) {
+        do {
+            m = (pixel::mode) ((m + 1) % (pixel::TRANSITION + 1));
+        } while (m == pixel::TRANSITION && pixels.get_colors_size() == 0);
+
         p.randomized = false;
         p.chained = false;
     } else if (!p.chained) {
