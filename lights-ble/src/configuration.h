@@ -17,10 +17,8 @@
 #define PIXELS_LEN          40
 #endif
 
-#ifdef ARDUINO_ARCH_ESP32
-#define PIXELS_PIN  GPIO_NUM_21
-#else
-#define PIXELS_PIN  RX
+#ifndef PIXELS_STRANDS
+#define PIXELS_STRANDS 3
 #endif
 
 #ifndef FW_VERSION
@@ -29,4 +27,8 @@
 
 #ifndef HW_VERSION
 #define HW_VERSION "unknown"
+#endif
+
+#if PIXELS_STRANDS > 3
+#error Exceeded max number of individual pixel strands
 #endif

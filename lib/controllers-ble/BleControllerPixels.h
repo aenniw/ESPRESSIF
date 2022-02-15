@@ -7,20 +7,20 @@
 
 class BleControllerPixels : public Subscriber<BleServer> {
 public:
-    const static NimBLEUUID UUID, UUID_COLOR, UUID_BRIGHTNESS, UUID_MODE,
-            UUID_COLORS, UUID_STATE, UUID_POWER, UUID_LENGTH;
+    const static NimBLEUUID UUID_COLOR, UUID_BRIGHTNESS, UUID_MODE,
+            UUID_COLORS, UUID_STATE, UUID_LENGTH;
 private:
     Pixels &pixels;
     PixelsRepository &repository;
+    const NimBLEUUID UUID;
 
+    BLECharacteristic *colorCharacteristic = nullptr;
     BLECharacteristic *stateCharacteristic = nullptr;
     BLECharacteristic *modeCharacteristic = nullptr;
     BLECharacteristic *brightnessCharacteristic = nullptr;
 protected:
     void length(BLECharacteristic &c) const;
     bool set_length(BLECharacteristic &c);
-    void power(BLECharacteristic &c) const;
-    bool set_power(BLECharacteristic &c);
     void state(BLECharacteristic &c) const;
     bool set_state(BLECharacteristic &c);
     void color(BLECharacteristic &c) const;
@@ -32,13 +32,15 @@ protected:
     void colors(BLECharacteristic &c) const;
     bool set_colors(BLECharacteristic &c);
 public:
-    explicit BleControllerPixels(Pixels &pixels, PixelsRepository &repository) :
-            pixels(pixels), repository(repository) {}
+    explicit BleControllerPixels(Pixels &pixels, PixelsRepository &repository,
+                                 uint8_t i = 0, uint32_t uuid = 0xab5ff770) :
+            pixels(pixels), repository(repository), UUID(fullUUID(uuid + i)) {}
 
-    void toggle();
-    void brighten();
-    void speedup();
+    void toggle_state();
     void toggle_modes();
+    void cycle_brightness(bool notify);
+    void cycle_color(bool notify);
+    void cycle_speed(bool notify);
 
     void subscribe(BleServer &ble) override;
 };

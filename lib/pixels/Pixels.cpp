@@ -2,8 +2,8 @@
 
 const static auto BLACK = RgbColor(0, 0, 0);
 
-HsbColor to_color(const pixel::color color) {
-    return {color.hue / 360.0f, color.sat / 100.0f, 1};
+HsbColor pixel::to_color(const pixel::color c) {
+    return {c.hue / 360.0f, c.sat / 100.0f, 1};
 }
 
 pixel::state Pixels::get_state() const {
@@ -50,9 +50,18 @@ pixel::mode Pixels::get_mode() const {
     return pixel::mode::STATIC;
 }
 
+pixel::params Pixels::get_params() const {
+    return {
+            .duration = this->duration,
+            .chained = this->chained,
+            .randomized = this->randomized,
+    };
+}
+
 void Pixels::set_mode(const pixel::mode m, const pixel::params p) {
     LOG("pixels - set_mode - %d %d %d %d", m, p.duration, p.chained, p.randomized);
 
+    this->duration = p.duration;
     this->randomized = p.randomized;
     this->chained = p.chained;
 
@@ -62,11 +71,11 @@ void Pixels::set_mode(const pixel::mode m, const pixel::params p) {
         set_pixels(to_color(color), true);
     } else if (animator.IsAnimationActive(m)) {
         LOG("pixels - set_mode - scale_animation");
-        animator.ChangeAnimationDuration(m, 200u + p.duration);
+        animator.ChangeAnimationDuration(m, 200u + duration);
     } else {
         LOG("pixels - set_mode - set_animation");
         animator.StopAll();
-        animator.StartAnimation(m, 200u + p.duration, animations[m]);
+        animator.StartAnimation(m, 200u + duration, animations[m]);
     }
 }
 
@@ -78,6 +87,8 @@ void Pixels::set_colors(uint8_t l, pixel::color colors[]) {
         animation_colors.push_back(colors[i]);
     }
 }
+
+uint8_t Pixels::get_colors_size() const { return this->animation_colors.size(); }
 
 Pixels::Pixels(uint16_t len) : animator(len, NEO_CENTISECONDS) {
     animations[pixel::mode::FADE] = std::bind(&Pixels::fade, this, std::placeholders::_1);

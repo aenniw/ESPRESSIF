@@ -2,8 +2,10 @@
 
 void FileSystem::factory_reset(uint32_t wait) {
     auto path = F("/factory-reset");
+#ifdef LED_BUILTIN
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH);
+#endif
     if (rm(path)) {
         LOG("fs - factory reset.");
         format();
@@ -13,7 +15,9 @@ void FileSystem::factory_reset(uint32_t wait) {
         LOG("fs - waiting for config reset event.");
         delay(wait);
         rm(path);
+#ifdef LED_BUILTIN
         digitalWrite(LED_BUILTIN, LOW);
+#endif
     }
 }
 

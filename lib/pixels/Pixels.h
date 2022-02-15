@@ -37,6 +37,8 @@ namespace pixel {
     typedef std::function<HsbColor(uint16_t i, float p)> ColorSupplier;
 
     uint8_t power_scale(uint16_t mA, uint8_t V, uint16_t len);
+
+    HsbColor to_color(pixel::color c);
 }
 
 class Pixels : public Service {
@@ -46,6 +48,7 @@ private:
     pixel::color color = { 0u, 0u };
     pixel::state state = pixel::OFF;
     std::vector<pixel::color> animation_colors;
+    uint16_t duration = 0u;
     bool chained = false, randomized = false;
 protected:
     virtual uint16_t length() const = 0;
@@ -77,9 +80,11 @@ public:
     virtual uint8_t get_brightness() const = 0;
 
     pixel::mode get_mode() const;
+    pixel::params get_params() const;
     void set_mode(pixel::mode m, pixel::params p);
 
     void set_colors(uint8_t l, pixel::color colors[]);
+    uint8_t get_colors_size() const;
 };
 
 
@@ -87,7 +92,8 @@ template<typename T_COLOR_FEATURE, typename T_METHOD, typename T_GAMMA>
 class NeoPixels : private NeoPixelBrightnessBus<T_COLOR_FEATURE, T_METHOD>, public Pixels {
 private:
     NeoGamma<T_GAMMA> gamma;
-    uint8_t power_cap = 255;
+    double power_cap = 1.0;
+    uint8_t brightness = 0u;
 protected:
     void set_pixels(const HsbColor &c, const bool correct) override {
         if (correct) {
@@ -111,16 +117,28 @@ protected:
     }
     void begin() override { this->Begin(); }
     uint16_t length() const override { return this->PixelCount(); }
-
 public:
-    NeoPixels(uint16_t len, uint8_t pin, uint16_t mA = 1000, uint8_t V = 5) :
-            NeoPixelBrightnessBus<T_COLOR_FEATURE, T_METHOD>(len, pin), Pixels(len) {
-        this->power_cap = pixel::power_scale(mA, V, len);
-        LOG("pixels - power_cap - %d", power_cap);
+    NeoPixels(uint16_t len, uint8_t pin, uint8_t power = 255u) :
+            NeoPixelBrightnessBus<T_COLOR_FEATURE, T_METHOD>(len, pin), Pixels(len), power_cap(power / 255.0) {
+        LOG("pixels - power_cap - %f", power_cap);
     }
+
     void set_brightness(uint8_t b) override {
         LOG("pixels - set_brightness - %d", b);
-        this->SetBrightness(map(b, 0, 255, 0, power_cap));
+        NeoPixelBrightnessBus<T_COLOR_FEATURE, T_METHOD>::_brightness =
+                (brightness = b) * power_cap;
+        if (get_mode() == pixel::STATIC) {
+            this->set_pixels(pixel::to_color(get_color()), true);
+        }
     };
-    uint8_t get_brightness() const override { return map(this->GetBrightness(), 0, power_cap, 0, 255); };
+
+    uint8_t get_brightness() const override { return brightness; };
 };
+
+typedef std::function<Pixels *(uint8_t len, uint8_t power)> PixelsSupplier;
+
+#define NeoPixelsRtm(gpio, channel) [](uint8_t len, uint8_t power) { \
+    return new NeoPixels<NeoGrbFeature, NeoEsp32Rmt ## channel ## 800KbpsMethod, NeoGammaTableMethod>( \
+        len, gpio, power \
+    ); \
+}

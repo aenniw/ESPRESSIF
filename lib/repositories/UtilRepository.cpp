@@ -2,6 +2,23 @@
 
 const String UtilRepository::BLE_RESET_HANDLE = "/ble-reset";
 
+uint16_t UtilRepository::get_power(const uint16_t fallback, const bool init) {
+    uint16_t p = fallback;
+    auto exists = fs.read(base_path + F("power"), [&](File &f) {
+        f.read(reinterpret_cast<uint8_t *>(&p), 2);
+    });
+    if (!exists && init) {
+        this->set_power(fallback);
+    }
+    return p;
+}
+
+void UtilRepository::set_power(uint16_t p) {
+    fs.write(base_path + F("power"), [&](File &f) {
+        f.write(reinterpret_cast<uint8_t *>(&p), 2);
+    });
+}
+
 std::string UtilRepository::get_name(const std::string &fallback, bool init) {
     std::string name = fallback;
     auto exists = fs.read(base_path + F("name"), [&](File &f) {

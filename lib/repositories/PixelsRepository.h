@@ -7,17 +7,17 @@
 typedef std::function<void(uint8_t l, pixel::color c[])> ColorConsumer;
 
 class PixelsRepository {
+protected:
+    const static String base;
 private:
     const String base_path;
     FileSystem &fs;
 public:
-    explicit PixelsRepository(FileSystem &fs) : base_path(F("/pixels/")), fs(fs) {}
+    explicit PixelsRepository(FileSystem &fs) : base_path(base + "/"), fs(fs) {}
+    explicit PixelsRepository(FileSystem &fs, uint8_t i) : base_path(base + "-" + i + "/"), fs(fs) {}
 
     uint8_t get_length(uint8_t fallback = 0, bool init = false);
     void set_length(uint8_t l);
-
-    uint16_t get_power(uint16_t fallback = 0, bool init = false);
-    void set_power(uint16_t p);
 
     pixel::state get_state() const;
     void set_state(pixel::state s);
