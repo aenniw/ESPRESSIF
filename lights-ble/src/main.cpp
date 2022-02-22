@@ -28,10 +28,9 @@ std::vector<Service *> services;
 
 // cppcheck-suppress unusedFunction
 void setup() {
-    LOG_INIT(&DEBUG_ESP_PORT, MONITOR_SPEED);
     fileSystem.begin();
 
-    LOG("setup");
+    log_i("setup");
     auto bleServer = new BleServer(
             utilRepository.get_name(BLE_NAME, true),
             BLE_MANUFACTURER,
@@ -61,7 +60,7 @@ void setup() {
     services.push_back(bleServer);
     services.push_back(&haptics);
 
-    LOG("initialize");
+    log_i("initialize");
     services.shrink_to_fit();
     for (auto &service: services)
         service->begin();
@@ -70,7 +69,7 @@ void setup() {
         BleServer::rm_bonds();
         fileSystem.touch(UtilRepository::BLE_RESET_HANDLE);
     }
-    LOG("initialized");
+    log_i("initialized");
 }
 
 // cppcheck-suppress unusedFunction

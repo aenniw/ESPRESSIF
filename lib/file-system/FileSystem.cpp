@@ -7,12 +7,12 @@ void FileSystem::factory_reset(uint32_t wait) {
     digitalWrite(LED_BUILTIN, HIGH);
 #endif
     if (rm(path)) {
-        LOG("fs - factory reset.");
+        log_w("fs - factory reset.");
         format();
         ESP.restart();
     } else {
         touch(path);
-        LOG("fs - waiting for config reset event.");
+        log_d("fs - waiting for config reset event.");
         delay(wait);
         rm(path);
 #ifdef LED_BUILTIN
@@ -23,13 +23,13 @@ void FileSystem::factory_reset(uint32_t wait) {
 
 void FileSystem::begin() {
     if (!VFS.begin()) {
-        LOG("fs - failed to initialize");
+        log_e("fs - failed to initialize");
         if (formatOnError) {
-            LOG("fs - formatting");
+            log_w("fs - formatting");
             VFS.format();
         }
         if (restartOnError) {
-            LOG("fs - restarting");
+            log_w("fs - restarting");
             ESP.restart();
         }
     } else if (formatOnReset) {
@@ -74,7 +74,7 @@ bool FileSystem::write(const String &path, const FileHandler &h, const char *mod
         file.close();
         return true;
     } else {
-        LOG("fs - failed to open %s", path.c_str());
+        log_d("fs - failed to open %s", path.c_str());
     }
     return false;
 }
@@ -86,7 +86,7 @@ bool FileSystem::read(const String &path, const FileHandler &h) {
         file.close();
         return true;
     } else {
-        LOG("fs - failed to open %s", path.c_str());
+        log_d("fs - failed to open %s", path.c_str());
     }
     return false;
 }

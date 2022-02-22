@@ -44,7 +44,7 @@ void ControllerGPIO::begin() {
         fs.read(base_path + n + F("/mode"), [&](File &m) {
             const auto mode = (uint8_t) m.parseInt();
             pinMode(pin, mode);
-            LOG("pinMode %d %d", pin, mode);
+            log_i("pinMode %d %d", pin, mode);
         });
     });
 }

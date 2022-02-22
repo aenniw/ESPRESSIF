@@ -11,7 +11,7 @@ pixel::state Pixels::get_state() const {
 }
 
 void Pixels::set_state(const pixel::state s) {
-    LOG("pixels - set_state - %d", s);
+    log_i("pixels - set_state - %d", s);
     state = s;
     if (state == pixel::state::OFF) {
         set_pixels(RgbColor(0, 0, 0), false);
@@ -30,7 +30,7 @@ void Pixels::set_color(pixel::color c) {
 }
 
 void Pixels::set_color(pixel::color c, const bool refresh) {
-    LOG("pixels - set_color - %d %d - %d", c.hue, c.sat, refresh);
+    log_i("pixels - set_color - %d %d - %d", c.hue, c.sat, refresh);
     color = c;
     if (refresh) {
         animator.StopAll();
@@ -59,31 +59,31 @@ pixel::params Pixels::get_params() const {
 }
 
 void Pixels::set_mode(const pixel::mode m, const pixel::params p) {
-    LOG("pixels - set_mode - %d %d %d %d", m, p.duration, p.chained, p.randomized);
+    log_i("pixels - set_mode - %d %d %d %d", m, p.duration, p.chained, p.randomized);
 
     this->duration = p.duration;
     this->randomized = p.randomized;
     this->chained = p.chained;
 
     if (m == pixel::mode::STATIC) {
-        LOG("pixels - set_mode - set_color");
+        log_d("pixels - set_mode - set_color");
         animator.StopAll();
         set_pixels(to_color(color), true);
     } else if (animator.IsAnimationActive(m)) {
-        LOG("pixels - set_mode - scale_animation");
+        log_d("pixels - set_mode - scale_animation");
         animator.ChangeAnimationDuration(m, 200u + duration);
     } else {
-        LOG("pixels - set_mode - set_animation");
+        log_d("pixels - set_mode - set_animation");
         animator.StopAll();
         animator.StartAnimation(m, 200u + duration, animations[m]);
     }
 }
 
 void Pixels::set_colors(uint8_t l, pixel::color colors[]) {
-    LOG("pixels - set_colors - %d", l);
+    log_i("pixels - set_colors - %d", l);
     animation_colors.clear();
     for (uint8_t i = 0; i < l; i++) {
-        LOG("pixels - set_colors - %d %d", colors[i].hue, colors[i].sat);
+        log_d("pixels - set_colors - %d %d", colors[i].hue, colors[i].sat);
         animation_colors.push_back(colors[i]);
     }
 }
@@ -119,7 +119,7 @@ pixel::animator_params Pixels::refresh(const AnimationParam &param) {
         opt.mask = randomized ?
                    (((uint64_t) get_random()) << 32u) + get_random() :
                    0xffffffffffffu;
-        LOG("pixels - anim opts - %d~%d %d", opt.start, opt.end, len);
+        log_d("pixels - anim opts - %d~%d %d", opt.start, opt.end, len);
     }
     return opt;
 }

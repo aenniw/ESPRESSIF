@@ -8,16 +8,29 @@ static Print *stream = nullptr;
 
 void __log_init__(Print *printer) { stream = printer; }
 
-void __log__(const __FlashStringHelper *fmt, ...) {
+void __log__(const char *format, ...) {
     if (!stream) return;
-    char buf[LOG_MAX_LEN];
-    sprintf_P(buf, PSTR("%010ld | "), millis());
-    stream->print(buf);
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf_P(buf, LOG_MAX_LEN, (PGM_P) fmt, args);
-    va_end(args);
-    stream->println(buf);
+    static char loc_buf[64];
+    char *temp = loc_buf;
+    size_t len;
+    va_list arg;
+    va_list copy;
+    va_start(arg, format);
+    va_copy(copy, arg);
+    len = vsnprintf(nullptr, 0, format, arg);
+    va_end(copy);
+    if (len >= sizeof(loc_buf)) {
+        temp = (char *) malloc(len + 1);
+        if (temp == nullptr) {
+            return;
+        }
+    }
+    vsnprintf(temp, len + 1, format, arg);
+    ets_printf("%s", temp);
+    va_end(arg);
+    if (len >= sizeof(loc_buf)) {
+        free(temp);
+    }
 }
 
 long get_digit(const String &s) {

@@ -1,7 +1,7 @@
 #include "EspServer.h"
 
 void EspServer::not_found() {
-    LOG("N/A | %d | %s", server.method(), server.uri().c_str());
+    log_d("N/A | %d | %s", server.method(), server.uri().c_str());
 
     if (cors && server.method() == HTTP_OPTIONS) {
         server.sendHeader(F("Access-Control-Max-Age"), F("10000"));
@@ -39,7 +39,7 @@ EspServer::on(const HTTPMethod method, const Uri &uri, const RestHandler &onRequ
               const RestHandler &onUpload, const bool checkAuth) {
     SERVER::THandlerFunction upload = [=]() { onUpload(&request); };
     SERVER::THandlerFunction handle = [=]() {
-        LOG("%d | %s", method, server.uri().c_str());
+        log_i("%d | %s", method, server.uri().c_str());
         bool auth = !checkAuth || !(user && secret);
         if (!auth) {
             auth |= server.authenticate(user, secret) || validate_bearer();

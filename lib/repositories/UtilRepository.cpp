@@ -7,6 +7,7 @@ uint16_t UtilRepository::get_power(const uint16_t fallback, const bool init) {
     auto exists = fs.read(base_path + F("power"), [&](File &f) {
         f.read(reinterpret_cast<uint8_t *>(&p), 2);
     });
+    log_d("util - power %d %d - %d", exists, init, p);
     if (!exists && init) {
         this->set_power(fallback);
     }
@@ -24,7 +25,7 @@ std::string UtilRepository::get_name(const std::string &fallback, bool init) {
     auto exists = fs.read(base_path + F("name"), [&](File &f) {
         name = std::string(f.readString().c_str());
     });
-    LOG("ble - name %d %d - %s", exists, init, name.c_str());
+    log_d("util - name %d %d - %s", exists, init, name.c_str());
     if (!exists && init) {
         this->set_name(fallback);
     }
@@ -42,7 +43,7 @@ uint32_t UtilRepository::get_secret(uint32_t fallback) const {
     fs.read(base_path + F("secret"), [&](File &f) {
         f.read(reinterpret_cast<uint8_t *>(&secret), 4);
     });
-    LOG("ble - secret %d", fallback);
+    log_d("util - secret %d", fallback);
     return secret;
 }
 

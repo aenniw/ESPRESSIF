@@ -32,8 +32,8 @@ std::vector<Service *> services{
 
 // cppcheck-suppress unusedFunction
 void setup() {
-    LOG_INIT(&DEBUG_ESP_PORT, MONITOR_SPEED);
-    LOG("initializing");
+    log_init(&DEBUG_ESP_PORT, MONITOR_SPEED);
+    log_i("initializing");
 
     wifi_config_reset(WIFI_MODE, WIFI_SSID, WIFI_PSK);
 
@@ -49,7 +49,7 @@ void setup() {
 
     for (auto &service : services)
         service->begin();
-    LOG("initialized");
+    log_i("initialized");
 }
 
 // cppcheck-suppress unusedFunction

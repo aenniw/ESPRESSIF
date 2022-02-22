@@ -8,7 +8,7 @@ void EspWebSocket::onEvent(uint8_t c, WStype_t type, uint8_t *payload, size_t le
     deserializeJson(doc, payload, length);
 
     if (!doc.containsKey(F("topic"))) {
-        LOG("topic key missing %s", (char *) payload);
+        log_w("topic key missing %s", (char *) payload);
         return;
     }
 
@@ -21,7 +21,7 @@ void EspWebSocket::onEvent(uint8_t c, WStype_t type, uint8_t *payload, size_t le
         }
     }
 
-    LOG("N/A | %d | %s", method, topic.c_str());
+    log_d("N/A | %d | %s", method, topic.c_str());
 }
 
 void EspWebSocket::addRequestHandler(EventHandler *handler) {
@@ -66,7 +66,7 @@ bool EventHandler::canHandle(HTTPMethod m, const String &to) {
 
 void EventHandler::handle(WebSocketsServer &ws, uint8_t num, const String &to) {
     EventRequest e(ws, num, to, method, broadcast, topicArgs);
-    LOG("%d | %s", method, to.c_str());
+    log_i("%d | %s", method, to.c_str());
     fn(&e);
 }
 

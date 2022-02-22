@@ -17,13 +17,13 @@ void wifi_connect(const WiFiMode_t mode, const char *ssid, const char *psk) {
     if (mode == WIFI_STA) {
         WiFi.begin(ssid, psk);
         while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-            LOG("Connection Failed! Waiting...");
+            log_d("Connection Failed! Waiting...");
             delay(500);
         }
-        LOG("IP address: %s", WiFi.localIP().toString().c_str());
+        log_i("IP address: %s", WiFi.localIP().toString().c_str());
     } else if (mode == WIFI_AP) {
         WiFi.softAP(ssid, psk);
-        LOG("IP address: %s", WiFi.softAPIP().toString().c_str());
+        log_i("IP address: %s", WiFi.softAPIP().toString().c_str());
     }
 }
 
@@ -32,7 +32,7 @@ void wifi_config_reset(const WiFiMode_t mode, const char *ssid, const char *psk,
     EEPROM.begin(EEPROM_SIZE);
 
     if (!EEPROM.read(address)) {
-        LOG("Restoring default WiFi config");
+        log_w("Restoring default WiFi config");
         wifi_connect(mode, ssid, psk);
         EEPROM.write(address, true);
         EEPROM.commit();
@@ -41,12 +41,12 @@ void wifi_config_reset(const WiFiMode_t mode, const char *ssid, const char *psk,
         EEPROM.commit();
         pinMode(LED_BUILTIN, OUTPUT);
         digitalWrite(LED_BUILTIN, LOW);
-        LOG("Waiting for config reset event");
+        log_d("Waiting for config reset event");
         delay(timeout);
         EEPROM.write(address, true);
         EEPROM.commit();
         digitalWrite(LED_BUILTIN, HIGH);
-        LOG("Continue with startup");
+        log_d("Continue with startup");
     }
 }
 
@@ -123,7 +123,7 @@ void ControllerWiFi::scan(Request *request) const {
     StaticJsonDocument<1024> doc;
 
     for (auto i = WiFi.scanNetworks() - 1; i >= 0; i--) {
-        LOG("found AP - %s", WiFi.SSID(i).c_str());
+        log_i("found AP - %s", WiFi.SSID(i).c_str());
         doc.add(WiFi.SSID(i));
     }
 

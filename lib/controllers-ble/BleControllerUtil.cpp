@@ -3,7 +3,7 @@
 
 void BleControllerUtil::power(BLECharacteristic &c) const {
     auto p = repository.get_power();
-    LOG("ble - power %d", p);
+    log_i("ble - power %d", p);
     c.setValue(p);
 }
 
@@ -13,12 +13,12 @@ bool BleControllerUtil::set_power(BLECharacteristic &c) {
 }
 
 void BleControllerUtil::hardware(BLECharacteristic &c) const {
-    LOG("ble - hw %s", hw_version.c_str());
+    log_i("ble - hw %s", hw_version.c_str());
     c.setValue(hw_version);
 }
 
 void BleControllerUtil::firmware(BLECharacteristic &c) const {
-    LOG("ble - fw %s", fw_version.c_str());
+    log_i("ble - fw %s", fw_version.c_str());
     c.setValue(fw_version);
 }
 
@@ -54,7 +54,7 @@ bool BleControllerUtil::set_firmware(BLECharacteristic &c) {
 
         VFS.remove(Firmware::PATCH);
         VFS.remove(Firmware::BINARY);
-        LOG("ble - ota - start %d %d, %llx%llx", ota_header.length, ota_header.type,
+        log_i("ble - ota - start %d %d, %llx%llx", ota_header.length, ota_header.type,
             ota_header.md5_le, ota_header.md5_hi);
     }
 
@@ -71,7 +71,7 @@ bool BleControllerUtil::set_firmware(BLECharacteristic &c) {
         md5.add(data + offset, dataLen);
         f.close();
 
-        LOG("ble - ota - uploaded %d/%d - %d", uploaded_size, ota_header.length, dataLen);
+        log_d("ble - ota - uploaded %d/%d - %d", uploaded_size, ota_header.length, dataLen);
 
         if (uploaded_size >= ota_header.length) {
             uint8_t hash[16] = {0u};
@@ -87,17 +87,17 @@ bool BleControllerUtil::set_firmware(BLECharacteristic &c) {
             }
 
             if (uploaded_size == ota_header.length && checksum) {
-                LOG("ble - ota - flashing");
+                log_w("ble - ota - flashing");
                 f = VFS.open(firmware, FILE_READ);
                 indicate = type == ota::BINARY ?
                            ota_flash_bin(f) :
                            ota_flash_patch(f);
                 f.close();
-                LOG("ble - ota - flashed %d", indicate);
+                log_w("ble - ota - flashed %d", indicate);
             } else {
-                LOG("ble - ota - checksum invalid %s", md5.toString().c_str());
+                log_e("ble - ota - checksum invalid %s", md5.toString().c_str());
             }
-            LOG("ble - ota - cleanup");
+            log_d("ble - ota - cleanup");
             VFS.remove(firmware);
             ota_streaming = false;
         }

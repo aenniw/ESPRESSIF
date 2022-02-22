@@ -2,7 +2,7 @@
 
 void BleControllerPixels::length(BLECharacteristic &c) const {
     auto l = repository.get_length();
-    LOG("ble - length %d", l);
+    log_i("ble - length %d", l);
     c.setValue(l);
 }
 
@@ -13,7 +13,7 @@ bool BleControllerPixels::set_length(BLECharacteristic &c) {
 
 void BleControllerPixels::state(BLECharacteristic &c) const {
     auto s = (uint8_t) repository.get_state();
-    LOG("ble - state %d", s);
+    log_i("ble - state %d", s);
     c.setValue(s);
 }
 
@@ -26,7 +26,7 @@ bool BleControllerPixels::set_state(BLECharacteristic &c) {
 
 void BleControllerPixels::color(BLECharacteristic &c) const {
     auto color = repository.get_color();
-    LOG("ble - color %d %d", color.hue, color.sat);
+    log_i("ble - color %d %d", color.hue, color.sat);
     c.setValue(color);
 }
 
@@ -39,7 +39,7 @@ bool BleControllerPixels::set_color(BLECharacteristic &c) {
 
 void BleControllerPixels::brightness(BLECharacteristic &c) const {
     auto b = repository.get_brightness();
-    LOG("ble - brightness %d", b);
+    log_i("ble - brightness %d", b);
     c.setValue(b);
 }
 
@@ -67,7 +67,7 @@ void BleControllerPixels::mode(BLECharacteristic &c) const {
             .randomized = p.randomized
     };
 
-    LOG("ble - mode %d %d %d %d", m.mode, m.duration, m.randomized, m.chained);
+    log_i("ble - mode %d %d %d %d", m.mode, m.duration, m.randomized, m.chained);
     c.setValue(m);
 }
 
@@ -88,7 +88,7 @@ bool BleControllerPixels::set_mode(BLECharacteristic &c) {
 
 void BleControllerPixels::colors(BLECharacteristic &c) const {
     repository.get_colors([&](uint8_t l, pixel::color colors[]) {
-        LOG("ble - colors %d", l);
+        log_i("ble - colors %d", l);
         c.setValue(reinterpret_cast<uint8_t *>(colors), l * sizeof(pixel::color));
     });
 }

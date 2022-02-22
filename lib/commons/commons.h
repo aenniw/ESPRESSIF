@@ -3,13 +3,28 @@
 #include <Arduino.h>
 
 #ifdef DEBUG_ESP_PORT
-void __log__(const __FlashStringHelper *fmt, ...);
-void __log_init__(Print *stream);
-#define LOG_INIT(s, b) (*(s)).begin(b);__log_init__(s)
-#define LOG(fmt, ...) __log__(F(fmt), ##__VA_ARGS__)
+#define log_init(s, b) (*(s)).begin(b);
+#if defined(ARDUINO_ARCH_ESP8266)
+    void __log_init__(Print *stream);
+    void __log__(const char *fmt, ...);
+
+    #define log_init(s, b) (*(s)).begin(b);__log_init__(s)
+    #define log_format(letter, format)  "[" #letter "][%s:%u] %s(): " format "\r\n", pathToFileName(__FILE__), __LINE__, __FUNCTION__
+    #define log_i(fmt, ...) __log__(log_format(I, fmt), ##__VA_ARGS__)
+    #define log_d(fmt, ...) __log__(log_format(D, fmt), ##__VA_ARGS__)
+    #define log_w(fmt, ...) __log__(log_format(W, fmt), ##__VA_ARGS__)
+    #define log_e(fmt, ...) __log__(log_format(E, fmt), ##__VA_ARGS__)
+    #define log_v(fmt, ...) __log__(log_format(V, fmt), ##__VA_ARGS__)
+#endif
 #else
-#define LOG_INIT(...)
-#define LOG(...)
+#define log_init(...)
+#if defined(ARDUINO_ARCH_ESP8266)
+    #define log_i(...)
+    #define log_d(...)
+    #define log_w(...)
+    #define log_e(...)
+    #define log_v(...)
+#endif
 #endif
 
 template<class T>

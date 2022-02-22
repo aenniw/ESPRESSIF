@@ -5,7 +5,7 @@ void BleServer::rm_bonds() {
     auto dev_num = esp_ble_get_bond_device_num();
     esp_ble_bond_dev_t dev_list[dev_num];
     esp_ble_get_bond_device_list(&dev_num, dev_list);
-    LOG("ble - reset bonds %d", dev_num);
+    log_w("ble - reset bonds %d", dev_num);
     for (int i = 0; i < dev_num; i++) {
         esp_ble_remove_bond_device(dev_list[i].bd_addr);
     }

@@ -24,7 +24,7 @@ String ControllerBearer::generate_token() {
         f.print(token);
         f.print('\n');
     }, "a")) {
-        LOG("Added token %s", token.c_str());
+        log_d("Added token %s", token.c_str());
         canGenerate = false;
         return token;
     }
@@ -72,7 +72,7 @@ void ControllerBearer::reset(Request *request) const {
 void ControllerBearer::enable() {
     elapsed = 0;
     canGenerate = true;
-    LOG("Token creation enabled");
+    log_w("Token creation enabled");
 }
 
 bool ControllerBearer::test(String &t) const {
@@ -101,7 +101,7 @@ void ControllerBearer::cycle() {
     if (elapsed > tokenGenerateTimeout) {
         if (canGenerate) {
             canGenerate = false;
-            LOG("Token creation disabled");
+            log_w("Token creation disabled");
         }
         elapsed = 0;
     }

@@ -120,11 +120,11 @@ protected:
 public:
     NeoPixels(uint16_t len, uint8_t pin, uint8_t power = 255u) :
             NeoPixelBrightnessBus<T_COLOR_FEATURE, T_METHOD>(len, pin), Pixels(len), power_cap(power / 255.0) {
-        LOG("pixels - power_cap - %f", power_cap);
+        log_i("pixels - power_cap - %f", power_cap);
     }
 
     void set_brightness(uint8_t b) override {
-        LOG("pixels - set_brightness - %d", b);
+        log_i("pixels - set_brightness - %d", b);
         NeoPixelBrightnessBus<T_COLOR_FEATURE, T_METHOD>::_brightness =
                 (brightness = b) * power_cap;
         if (get_mode() == pixel::STATIC) {
