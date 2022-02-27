@@ -90,7 +90,8 @@ void Pixels::set_colors(uint8_t l, pixel::color colors[]) {
 
 uint8_t Pixels::get_colors_size() const { return this->animation_colors.size(); }
 
-Pixels::Pixels(uint16_t len) : animator(len, NEO_CENTISECONDS) {
+Pixels::Pixels(uint16_t len) : animator(len, NEO_CENTISECONDS),
+                               animation_opt({len, 0xffffffffffffu, len, 0}) {
     animations[pixel::mode::FADE] = std::bind(&Pixels::fade, this, std::placeholders::_1);
     animations[pixel::mode::RAINBOW] = std::bind(&Pixels::rainbow, this, std::placeholders::_1);
     animations[pixel::mode::TRANSITION] = std::bind(&Pixels::transition, this, std::placeholders::_1);
@@ -106,22 +107,20 @@ void Pixels::cycle() {
     show();
 }
 
-pixel::animator_params Pixels::refresh(const AnimationParam &param) {
-    const static uint16_t len = length();
-    static pixel::animator_params opt = {len, 0xffffffffffffu, len, 0};
+void Pixels::refresh(const AnimationParam &param) {
+    const uint16_t len = length();
 
     if (param.state == AnimationState_Completed) {
         animator.RestartAnimation(param.index);
 
-        opt.end = randomized ? random(len / 4, len) : len;
-        opt.start = randomized ? random(len - opt.end) : 0;
-        opt.end = opt.start + opt.end;
-        opt.mask = randomized ?
-                   (((uint64_t) get_random()) << 32u) + get_random() :
-                   0xffffffffffffu;
-        LOG("pixels - anim opts - %d~%d %d", opt.start, opt.end, len);
+        animation_opt.end = randomized ? random(len / 4, len) : len;
+        animation_opt.start = randomized ? random(len - animation_opt.end) : 0;
+        animation_opt.end = animation_opt.start + animation_opt.end;
+        animation_opt.mask = randomized ?
+                             (((uint64_t) get_random()) << 32u) + get_random() :
+                             0xffffffffffffu;
+        LOG("pixels - anim opts - %d~%d %d", animation_opt.start, animation_opt.end, len);
     }
-    return opt;
 }
 
 static float progress_offset(const uint16_t l, const uint16_t i, float p) {
@@ -135,15 +134,15 @@ void Pixels::animate(
         const pixel::ColorSupplier &s,
         const bool dim
 ) {
-    static pixel::animator_params params = refresh(param);
+    refresh(param);
 
-    for (uint16_t i = 0; i < params.len; i++) {
-        if ((params.mask >> (i % 64)) & 0x1u && !chained) {
+    for (uint16_t i = 0; i < animation_opt.len; i++) {
+        if ((animation_opt.mask >> (i % 64)) & 0x1u && !chained) {
             set_pixel(i, s(i, param.progress), true);
-        } else if (params.start <= i && i < params.end && chained) {
+        } else if (animation_opt.start <= i && i < animation_opt.end && chained) {
             auto progress = progress_offset(
-                    params.end - params.start,
-                    i - params.start,
+                    animation_opt.end - animation_opt.start,
+                    i - animation_opt.start,
                     param.progress
             );
             set_pixel(i, c(i, progress), true);
@@ -153,8 +152,6 @@ void Pixels::animate(
             set_pixel(i, BLACK, false);
         }
     }
-
-    params = refresh(param);
 }
 
 static RgbColor linearBlend(const RgbColor &l, const RgbColor &m, const RgbColor &r, float progress) {

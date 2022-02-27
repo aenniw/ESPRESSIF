@@ -48,6 +48,7 @@ private:
     pixel::color color = { 0u, 0u };
     pixel::state state = pixel::OFF;
     std::vector<pixel::color> animation_colors;
+    pixel::animator_params animation_opt;
     uint16_t duration = 0u;
     bool chained = false, randomized = false;
 protected:
@@ -61,7 +62,7 @@ protected:
                  const pixel::ColorSupplier &c,
                  const pixel::ColorSupplier &s,
                  bool dim);
-    pixel::animator_params refresh(const AnimationParam &param);
+    void refresh(const AnimationParam &param);
     void fade(const AnimationParam &param);
     void rainbow(const AnimationParam &param);
     void transition(const AnimationParam &param);

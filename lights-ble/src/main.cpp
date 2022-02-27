@@ -53,7 +53,7 @@ void setup() {
         auto pixels = PixelsStrands[i](repositories[i]->get_length(), power);
         services.push_back(pixels);
 
-        auto controller = new BleControllerPixels(*pixels, *repositories[i]);
+        auto controller = new BleControllerPixels(*pixels, *repositories[i], i);
         bleServer->serve(controller);
         haptics.serve(controller);
     }
