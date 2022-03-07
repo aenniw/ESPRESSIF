@@ -16,7 +16,7 @@ public:
     explicit BleCallback(BleWHandler write);
     BleCallback(BleRHandler read, BleWHandler write);
 
-    void onRead(BLECharacteristic *pCharacteristic) override;;
+    void onRead(BLECharacteristic *pCharacteristic) override;
     void onWrite(BLECharacteristic *pCharacteristic) override;
 
 };
@@ -26,7 +26,6 @@ private:
     std::string name, manufacturer;
     uint32_t secret;
     BLEAdvertisementData advertData;
-    BLESecurity security;
     BLEServer *server = nullptr;
     std::vector<NimBLEUUID> controllers;
     std::vector<Subscriber<BleServer> *> subscriptions;

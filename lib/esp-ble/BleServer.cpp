@@ -2,13 +2,8 @@
 #include <esp_gap_ble_api.h>
 
 void BleServer::rm_bonds() {
-    auto dev_num = esp_ble_get_bond_device_num();
-    esp_ble_bond_dev_t dev_list[dev_num];
-    esp_ble_get_bond_device_list(&dev_num, dev_list);
-    LOG("ble - reset bonds %d", dev_num);
-    for (int i = 0; i < dev_num; i++) {
-        esp_ble_remove_bond_device(dev_list[i].bd_addr);
-    }
+    LOG("ble - reset bonds");
+    NimBLEDevice::deleteAllBonds();
 }
 
 BLEService *BleServer::service(const NimBLEUUID sUuid, uint32_t numHandles) {
@@ -26,24 +21,27 @@ BleServer::BleServer(std::string name, std::string manufacturer, const uint32_t 
 void BleServer::begin() {
     if (server == nullptr) {
         BLEDevice::init(name);
+        BLEDevice::setPower(ESP_PWR_LVL_P9);
+
+        BLEDevice::setSecurityAuth(true, true, true);
+        BLEDevice::setSecurityPasskey(secret);
+        BLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
+
         server = BLEDevice::createServer();
     } else { return; }
 
     for (const auto &subscription : subscriptions)
         subscription->subscribe(*this);
 
-    security.setStaticPIN(secret);
-    security.setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
-
     server->setCallbacks(this);
     for (auto &controller : controllers)
         server->getServiceByUUID(controller)->start();
 
-    auto advertising = BLEDevice::getAdvertising();
-    advertising->setScanResponse(false);
-    advertising->setMinPreferred(0x0);
     advertData.setName(name);
     advertData.setManufacturerData(manufacturer);
+
+    auto advertising = BLEDevice::getAdvertising();
+    advertising->setScanResponse(true);
     advertising->setAdvertisementData(advertData);
     advertising->start();
 }
